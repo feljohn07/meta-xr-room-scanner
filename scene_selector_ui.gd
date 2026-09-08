@@ -11,9 +11,11 @@ signal toggle_tape_measure_requested(enabled: bool)
 signal clear_measurements_requested()
 signal refresh_room_dimensions_requested()
 signal unit_preference_changed(use_imperial: bool)
+signal toggle_cad_view_requested()
 
 @onready var tab_layouts_btn: Button = %TabLayoutsBtn
 @onready var tab_measure_btn: Button = %TabMeasureBtn
+@onready var tab_cad_btn: Button = %TabCadBtn
 @onready var layouts_view: VBoxContainer = %LayoutsView
 @onready var measure_view: VBoxContainer = %MeasureView
 
@@ -73,6 +75,12 @@ func _ready() -> void:
 			refresh_room_dimensions_requested.emit()
 		)
 		_register_hover_effect(tab_measure_btn, "View room dimensions and 3D tape measure")
+	if tab_cad_btn:
+		tab_cad_btn.pressed.connect(func():
+			toggle_cad_view_requested.emit()
+			show_status("Toggled 3D CAD Blueprint Dollhouse View")
+		)
+		_register_hover_effect(tab_cad_btn, "Spawn/Toggle 3D Miniature CAD Blueprint Model")
 
 	# Measurement Controls
 	if refresh_bounds_button:

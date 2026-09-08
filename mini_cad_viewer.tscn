@@ -1,0 +1,107 @@
+[gd_scene format=3 uid="uid://dmk2g4p8y3w9v"]
+
+[ext_resource type="Script" path="res://mini_cad_viewer.gd" id="1_cad"]
+[ext_resource type="Shader" path="res://assets/cad_blueprint_grid.gdshader" id="2_grid"]
+[ext_resource type="PackedScene" path="res://mini_cad_viewer_controls.tscn" id="3_ctrls"]
+[ext_resource type="PackedScene" path="res://addons/common/viewport_2d_in_3d/viewport_2d_in_3d.tscn" id="4_v2d3d"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_grid"]
+render_priority = 0
+shader = ExtResource("2_grid")
+shader_parameter/bg_color = Color(0.03, 0.06, 0.1, 0.96)
+shader_parameter/grid_major_color = Color(0, 0.85, 1, 0.9)
+shader_parameter/grid_minor_color = Color(0.1, 0.3, 0.55, 0.45)
+shader_parameter/axis_x_color = Color(1, 0.25, 0.25, 0.95)
+shader_parameter/axis_z_color = Color(0.25, 1, 0.4, 0.95)
+shader_parameter/major_spacing = 0.1
+shader_parameter/subdivisions = 5.0
+shader_parameter/line_thickness = 0.003
+shader_parameter/border_thickness = 0.015
+shader_parameter/border_color = Color(0, 0.9, 1, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_baseplate"]
+material = SubResource("ShaderMaterial_grid")
+size = Vector3(1.2, 0.02, 1.2)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_handle"]
+albedo_color = Color(0.08, 0.12, 0.18, 1)
+metallic = 0.85
+roughness = 0.2
+emission_enabled = true
+emission = Color(0, 0.8, 1, 1)
+emission_energy_multiplier = 0.5
+
+[sub_resource type="BoxMesh" id="BoxMesh_handle"]
+material = SubResource("StandardMaterial3D_handle")
+size = Vector3(0.55, 0.03, 0.05)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_handle"]
+size = Vector3(0.65, 0.12, 0.15)
+
+[node name="MiniCADViewer" type="Node3D"]
+script = ExtResource("1_cad")
+
+[node name="Baseplate" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.01, 0)
+mesh = SubResource("BoxMesh_baseplate")
+
+[node name="GrabHandle" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.015, 0.62)
+
+[node name="HandleMesh" type="MeshInstance3D" parent="GrabHandle"]
+mesh = SubResource("BoxMesh_handle")
+
+[node name="Area3D" type="Area3D" parent="GrabHandle"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GrabHandle/Area3D"]
+shape = SubResource("BoxShape3D_handle")
+
+[node name="HandleLabel" type="Label3D" parent="GrabHandle"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.045, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0.2, 0.9, 1, 1)
+outline_modulate = Color(0, 0, 0, 1)
+text = "🖐 GRAB BAR (HOLD TRIGGER TO REPOSITION)"
+font_size = 15
+outline_size = 4
+pixel_size = 0.0015
+
+[node name="TitleLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, -0.65)
+billboard = 1
+no_depth_test = true
+modulate = Color(1, 1, 1, 1)
+outline_modulate = Color(0, 0, 0, 1)
+text = "CAD Blueprint: Default"
+font_size = 26
+outline_size = 6
+pixel_size = 0.002
+
+[node name="InfoLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.42, -0.65)
+billboard = 1
+no_depth_test = true
+modulate = Color(0.3, 0.9, 1, 1)
+outline_modulate = Color(0, 0, 0, 1)
+text = "Scale: 1:25 (4.0%)
+Surfaces: 0 | Anchors: 0"
+font_size = 17
+outline_size = 4
+pixel_size = 0.002
+
+[node name="ModelRotator" type="Node3D" parent="."]
+
+[node name="ContentPivot" type="Node3D" parent="ModelRotator"]
+
+[node name="RoomSurfaces" type="Node3D" parent="ModelRotator/ContentPivot"]
+
+[node name="Anchors" type="Node3D" parent="ModelRotator/ContentPivot"]
+
+[node name="ControlsBar" parent="." instance=ExtResource("4_v2d3d")]
+transform = Transform3D(1, 0, 0, 0, 0.906308, 0.422618, 0, -0.422618, 0.906308, 0, 0.08, 0.78)
+scene = ExtResource("3_ctrls")
+viewport_size = Vector2i(740, 80)
+pixel_size = 0.001

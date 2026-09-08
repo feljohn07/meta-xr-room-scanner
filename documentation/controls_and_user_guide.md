@@ -71,3 +71,17 @@ The floating menu is opened by pressing the **[Menu]** button on the left contro
 3. Select a preset (e.g., **Office**) or type a custom name in the input box, then click **Save Layout**.
 4. To create another layout, click **Clear Room Anchors**, place new anchors (e.g., for **Play Area**), and save again.
 5. Use the **Switch To** buttons in the list to transition between layouts seamlessly.
+
+### Workflow 4: Inspecting & Moving the Mini CAD Blueprint Model
+1. In the Hub menu header, click **🏢 CAD Dollhouse**.
+2. A miniature 3D architectural blueprint model of your scanned room will materialize 0.95m in front of you at tabletop height.
+3. **Repositioning / Moving**:
+   - Point your right controller laser at the front glowing grab bar labeled **🖐 GRAB BAR**.
+   - Hold **[Trigger]** to pick up the CAD workstation and move your controller to place it anywhere (e.g., on your physical desk). Release **[Trigger]** to lock it in place.
+4. **Resizing / Scale Selection**:
+   - Click the **[➖ Scale]** or **[➕ Scale]** buttons on the workstation's front bezel to cycle architectural scale ratios: **1:10**, **1:20**, **1:25**, **1:50**, or **1:100**.
+5. **View Perspectives & Turntable**:
+   - Click **[📐 3D Iso]** for an axonometric dollhouse view.
+   - Click **[🗺️ 2D Plan]** for an AutoCAD-style top-down floorplan blueprint view.
+   - Click **[🔄 Orbit]** to enable continuous hands-free turntable rotation.
+   - Click **[⚡ Sync]** to refresh and re-center the model after new room scans or anchor placements.

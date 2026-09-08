@@ -40,6 +40,7 @@ var _last_trigger_press_msec: int = 0
 @onready var environment_depth_node = $XROrigin3D/XRCamera3D/OpenXRMetaEnvironmentDepth
 @onready var depth_testing_mesh: MeshInstance3D = $XROrigin3D/RightHand/DepthTestingMesh
 @onready var scene_menu_viewport = %SceneMenuViewport
+@onready var mini_cad_viewer: MiniCADViewer = %MiniCADViewer
 @onready var function_pointer = $XROrigin3D/RightHandPointer/FunctionPointer
 
 const COLORS = [
@@ -112,6 +113,11 @@ func _setup_scene_menu() -> void:
 			ui.refresh_room_dimensions_requested.connect(refresh_and_send_room_dimensions)
 		if not ui.unit_preference_changed.is_connected(_on_ui_unit_preference_changed):
 			ui.unit_preference_changed.connect(_on_ui_unit_preference_changed)
+		if ui.has_signal("toggle_cad_view_requested") and not ui.toggle_cad_view_requested.is_connected(toggle_cad_viewer):
+			ui.toggle_cad_view_requested.connect(toggle_cad_viewer)
+
+	if mini_cad_viewer:
+		mini_cad_viewer.initialize_managers(scene_manager, spatial_anchor_manager)
 
 	_update_scene_ui()
 
@@ -193,6 +199,8 @@ func _on_scene_anchor_child_entered(_child: Node) -> void:
 	# Give the spawned anchor a frame or two to run setup_scene()
 	await get_tree().create_timer(0.2).timeout
 	refresh_and_send_room_dimensions()
+	if mini_cad_viewer and mini_cad_viewer.visible:
+		mini_cad_viewer.rebuild_cad_model()
 
 
 func calculate_room_dimensions() -> Dictionary:
@@ -465,6 +473,10 @@ func _update_scene_ui() -> void:
 		if ui.has_method("set_tape_measure_state"):
 			ui.set_tape_measure_state(tape_measure_active, tape_measure_has_point_a)
 
+	if mini_cad_viewer and mini_cad_viewer.visible:
+		mini_cad_viewer.set_saved_scenes_data(saved_scenes, active_scene_name)
+		mini_cad_viewer.rebuild_cad_model()
+
 
 func toggle_scene_menu(enable = null) -> void:
 	if not scene_menu_viewport:
@@ -477,6 +489,40 @@ func toggle_scene_menu(enable = null) -> void:
 	if enable:
 		position_menu_in_front_of_player()
 		_update_scene_ui()
+
+
+func toggle_cad_viewer(enable = null) -> void:
+	if not mini_cad_viewer:
+		return
+
+	if enable == null:
+		enable = not mini_cad_viewer.visible
+
+	mini_cad_viewer.visible = enable
+	if enable:
+		position_cad_viewer_in_front_of_player()
+		mini_cad_viewer.set_saved_scenes_data(saved_scenes, active_scene_name)
+		mini_cad_viewer.rebuild_cad_model()
+
+
+func position_cad_viewer_in_front_of_player() -> void:
+	if not xr_camera or not mini_cad_viewer:
+		return
+
+	var cam_tf = xr_camera.global_transform
+	var forward = -cam_tf.basis.z
+	forward.y = 0.0
+	if forward.is_zero_approx():
+		forward = Vector3.FORWARD
+	else:
+		forward = forward.normalized()
+
+	# Position 0.95m forward, 0.35m below eye level (tabletop height)
+	var cad_pos = cam_tf.origin + forward * 0.95
+	cad_pos.y = cam_tf.origin.y - 0.35
+	mini_cad_viewer.global_position = cad_pos
+	mini_cad_viewer.look_at(cam_tf.origin, Vector3.UP)
+	mini_cad_viewer.rotate_y(PI)
 
 
 func position_menu_in_front_of_player() -> void:
@@ -553,10 +599,15 @@ func _physics_process(_delta: float) -> void:
 	if right_hand_pointer.visible:
 		var previous_selected_spatial_anchor_node = selected_spatial_anchor_node
 
-		# Check if pointing at floating UI menu
+		# Check if pointing at floating UI menu or CAD viewer controls
 		var pointing_at_menu := false
 		if scene_menu_viewport and scene_menu_viewport.visible:
 			var hit = scene_menu_viewport.intersects_ray(right_hand_pointer.global_position, -right_hand_pointer.global_transform.basis.z)
+			if hit != Vector2(-1.0, -1.0):
+				pointing_at_menu = true
+
+		if not pointing_at_menu and mini_cad_viewer and mini_cad_viewer.visible and mini_cad_viewer.controls_panel:
+			var hit = mini_cad_viewer.controls_panel.intersects_ray(right_hand_pointer.global_position, -right_hand_pointer.global_transform.basis.z)
 			if hit != Vector2(-1.0, -1.0):
 				pointing_at_menu = true
 
@@ -632,6 +683,21 @@ func _on_right_hand_button_pressed(name: String) -> void:
 					function_pointer._do_select(true)
 				return
 
+		# If user is pointing at CAD viewer controls bar
+		if mini_cad_viewer and mini_cad_viewer.visible and mini_cad_viewer.controls_panel:
+			var hit = mini_cad_viewer.controls_panel.intersects_ray(right_hand_pointer.global_position, -right_hand_pointer.global_transform.basis.z)
+			if hit != Vector2(-1.0, -1.0):
+				if function_pointer and function_pointer.has_method("_do_select"):
+					function_pointer._do_select(true)
+				return
+
+		# If user clicks the grab handle of the Mini CAD Viewer
+		if right_hand_pointer_raycast.is_colliding():
+			var collider = right_hand_pointer_raycast.get_collider()
+			if mini_cad_viewer and mini_cad_viewer.visible and mini_cad_viewer.grab_handle_area and collider == mini_cad_viewer.grab_handle_area:
+				mini_cad_viewer.start_grab(right_hand_pointer)
+				return
+
 		# If tape measure mode is active, handle Point A and Point B placement
 		if tape_measure_active:
 			var hit_point := Vector3.ZERO
@@ -692,6 +758,8 @@ func _on_right_hand_button_pressed(name: String) -> void:
 
 func _on_right_hand_button_released(name: String) -> void:
 	if name == "trigger_click" or name == "trigger":
+		if mini_cad_viewer and mini_cad_viewer.is_grabbed:
+			mini_cad_viewer.end_grab()
 		if function_pointer and function_pointer.has_method("_do_select"):
 			function_pointer._do_select(false)
 
@@ -703,6 +771,8 @@ func _on_scene_manager_scene_capture_completed(success: bool) -> void:
 			scene_manager.remove_scene_anchors()
 		scene_manager.create_scene_anchors()
 		refresh_and_send_room_dimensions()
+		if mini_cad_viewer and mini_cad_viewer.visible:
+			mini_cad_viewer.rebuild_cad_model()
 
 
 func _on_scene_manager_scene_data_missing() -> void:

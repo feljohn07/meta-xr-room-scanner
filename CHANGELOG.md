@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.3.0] - 2026-09-08
+
+### Added
+- **Mini CAD / Dollhouse Prototype Viewer (`mini_cad_viewer.tscn` / `mini_cad_viewer.gd`)**:
+  - Miniature 3D architectural workstation projecting scanned physical rooms, furniture, and spatial anchors.
+  - Normalized centering math positioning the miniature room flush on the CAD baseplate.
+  - Two custom CAD shaders:
+    - `assets/cad_blueprint_grid.gdshader`: Technical blueprint baseplate with major/minor grid lines, coordinate axes ($X, Z$), and glowing borders.
+    - `assets/cad_blueprint_surface.gdshader`: Holographic Fresnel edge-glow shader with semantic color classifications (cyan walls, emerald furniture, red portals, deep navy floors).
+  - Spatial grab & drag repositioning via front handle bar collider (`Area3D`), allowing users to pick up and place the workstation on physical tables or floating in mid-air.
+  - Standard architectural scale presets: **1:10**, **1:20**, **1:25** (default), **1:50**, and **1:100** with smooth scale tweening.
+  - CAD viewing perspectives:
+    - **3D Isometric View**: Axonometric dollhouse angle ($32^\circ, -45^\circ$).
+    - **2D Floorplan View**: Orthogonal top-down blueprint plan view ($90^\circ$).
+    - **360° Turntable Orbit**: Continuous hands-free rotation ($0.6\,\text{rad/s}$).
+  - Self-contained 2D-in-3D control bezel (`mini_cad_viewer_controls.tscn` / `mini_cad_viewer_controls.gd`).
+  - Integration with multi-layout system to preview saved room layouts without altering real-world anchor tracking.
+- **UI & Controller Integration**:
+  - Added **"🏢 CAD Dollhouse"** button to the main hub menu header (`scene_selector_ui.tscn`).
+  - Integrated raycast laser hit testing and grab handling in `main.gd` with automatic synchronization on room scans.
+- **Documentation**:
+  - Added dedicated documentation in `documentation/mini_cad_viewer.md` and updated navigation index and user workflows.
+
+---
+
 ## [1.2.0] - 2026-09-08
 
 ### Added

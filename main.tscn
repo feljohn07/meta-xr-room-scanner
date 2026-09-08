@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" uid="uid://c7m5y3b4h0q1a" path="res://scene_selector_ui.tscn" id="6_scene_ui"]
 [ext_resource type="PackedScene" uid="uid://dcwibwtseri8h" path="res://addons/common/viewport_2d_in_3d/viewport_2d_in_3d.tscn" id="7_v2d3d"]
 [ext_resource type="PackedScene" uid="uid://cqs8c3rq6cxvk" path="res://addons/common/viewport_2d_in_3d/function_pointer.tscn" id="8_fptr"]
+[ext_resource type="PackedScene" path="res://mini_cad_viewer.tscn" id="9_cad"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_0x6cv"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -114,6 +115,11 @@ visible = false
 scene = ExtResource("6_scene_ui")
 viewport_size = Vector2i(900, 600)
 pixel_size = 0.001
+
+[node name="MiniCADViewer" parent="XROrigin3D" instance=ExtResource("9_cad")]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 0.85, -1)
+visible = false
 
 [connection signal="button_pressed" from="XROrigin3D/LeftHand" to="." method="_on_left_hand_button_pressed"]
 [connection signal="button_pressed" from="XROrigin3D/RightHand" to="." method="_on_right_hand_button_pressed"]

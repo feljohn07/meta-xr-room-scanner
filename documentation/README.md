@@ -15,6 +15,7 @@ This project demonstrates an enterprise-grade Mixed Reality (MR) application uti
 | [**Systems & Subsystems Analysis**](systems_and_subsystems.md) | Detailed technical analysis of the 3D Tape Measure, Room Dimension Estimator, Layout Persistence Hub, and Raycast Pointer Interaction. |
 | [**Project Configuration & Deployment**](project_configuration_and_deployment.md) | Godot project settings, OpenXR Action Map, Android export presets for Meta Quest, and addon dependencies. |
 | [**Controls & User Guide**](controls_and_user_guide.md) | Headset controller bindings, interactive UI instructions, and operational workflows for users and testers. |
+| [**Mini CAD / Dollhouse Viewer**](mini_cad_viewer.md) | Architectural AutoCAD-style miniature blueprint workstation: 3D isometric and 2D floorplan views, scale ratios, and grab/drag repositioning. |
 | [**Project Changelog**](../CHANGELOG.md) | Detailed version history of all features, enhancements, architecture changes, and bug fixes. |
 
 ---
