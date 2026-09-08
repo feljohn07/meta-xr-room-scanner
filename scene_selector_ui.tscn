@@ -1,0 +1,429 @@
+[gd_scene format=3 uid="uid://c7m5y3b4h0q1a"]
+
+[ext_resource type="Script" uid="uid://bkn4fx7e60l1r" path="res://scene_selector_ui.gd" id="1_u1abc"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+bg_color = Color(0.09, 0.11, 0.15, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.24, 0.35, 0.5, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_size = 14
+shadow_color = Color(0, 0, 0, 0.6)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card"]
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
+bg_color = Color(0.12, 0.15, 0.2, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.25, 0.35, 0.48, 0.8)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_normal"]
+content_margin_left = 12.0
+content_margin_top = 8.0
+content_margin_right = 12.0
+content_margin_bottom = 8.0
+bg_color = Color(0.14, 0.18, 0.24, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.28, 0.38, 0.52, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_hover"]
+content_margin_left = 12.0
+content_margin_top = 8.0
+content_margin_right = 12.0
+content_margin_bottom = 8.0
+bg_color = Color(0.18, 0.35, 0.56, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.22, 0.85, 1, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0.22, 0.85, 1, 0.4)
+shadow_size = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_pressed"]
+content_margin_left = 12.0
+content_margin_top = 8.0
+content_margin_right = 12.0
+content_margin_bottom = 8.0
+bg_color = Color(0.08, 0.55, 0.9, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.6, 0.92, 1, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_focus"]
+draw_center = false
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.22, 0.85, 1, 0.8)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_disabled"]
+content_margin_left = 12.0
+content_margin_top = 8.0
+content_margin_right = 12.0
+content_margin_bottom = 8.0
+bg_color = Color(0.11, 0.13, 0.17, 0.6)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2, 0.24, 0.3, 0.4)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_input_normal"]
+content_margin_left = 12.0
+content_margin_top = 8.0
+content_margin_right = 12.0
+content_margin_bottom = 8.0
+bg_color = Color(0.08, 0.1, 0.14, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.25, 0.34, 0.46, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_input_focus"]
+content_margin_left = 12.0
+content_margin_top = 8.0
+content_margin_right = 12.0
+content_margin_bottom = 8.0
+bg_color = Color(0.09, 0.12, 0.18, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.22, 0.85, 1, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="Theme" id="Theme_vr_ui"]
+Button/colors/font_color = Color(0.9, 0.93, 0.98, 1)
+Button/colors/font_disabled_color = Color(0.45, 0.48, 0.55, 0.7)
+Button/colors/font_focus_color = Color(1, 1, 1, 1)
+Button/colors/font_hover_color = Color(1, 1, 1, 1)
+Button/colors/font_pressed_color = Color(1, 1, 1, 1)
+Button/styles/disabled = SubResource("StyleBoxFlat_btn_disabled")
+Button/styles/focus = SubResource("StyleBoxFlat_btn_focus")
+Button/styles/hover = SubResource("StyleBoxFlat_btn_hover")
+Button/styles/normal = SubResource("StyleBoxFlat_btn_normal")
+Button/styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
+LineEdit/colors/caret_color = Color(0.22, 0.85, 1, 1)
+LineEdit/colors/font_color = Color(0.95, 0.97, 1, 1)
+LineEdit/styles/focus = SubResource("StyleBoxFlat_input_focus")
+LineEdit/styles/normal = SubResource("StyleBoxFlat_input_normal")
+
+[node name="SceneSelectorUI" type="Control"]
+custom_minimum_size = Vector2(920, 620)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 920.0
+offset_bottom = 620.0
+theme = SubResource("Theme_vr_ui")
+script = ExtResource("1_u1abc")
+
+[node name="PanelContainer" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_bg")
+
+[node name="MarginContainer" type="MarginContainer" parent="PanelContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 22
+
+[node name="MainVBox" type="VBoxContainer" parent="PanelContainer/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HeaderHBox" type="HBoxContainer" parent="PanelContainer/MarginContainer/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/HeaderHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "XR Space & Measurement Hub"
+
+[node name="TabLayoutsBtn" type="Button" parent="PanelContainer/MarginContainer/MainVBox/HeaderHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(130, 38)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "📋 Layouts"
+
+[node name="TabMeasureBtn" type="Button" parent="PanelContainer/MarginContainer/MainVBox/HeaderHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 38)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "📐 Measurements"
+
+[node name="CloseButton" type="Button" parent="PanelContainer/MarginContainer/MainVBox/HeaderHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(90, 38)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "✕ Close"
+
+[node name="HSeparator1" type="HSeparator" parent="PanelContainer/MarginContainer/MainVBox"]
+layout_mode = 2
+
+[node name="LayoutsView" type="VBoxContainer" parent="PanelContainer/MarginContainer/MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="ActiveLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/LayoutsView"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.85, 0.95, 1)
+theme_override_font_sizes/font_size = 15
+text = "Active Layout: Default (0 anchors in room)"
+
+[node name="ListScroll" type="ScrollContainer" parent="PanelContainer/MarginContainer/MainVBox/LayoutsView"]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SceneListContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer/MainVBox/LayoutsView/ListScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="HSeparator2" type="HSeparator" parent="PanelContainer/MarginContainer/MainVBox/LayoutsView"]
+layout_mode = 2
+
+[node name="SaveSectionLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/LayoutsView"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.88, 0.95, 1)
+theme_override_font_sizes/font_size = 14
+text = "Quick Presets & Save Layout:"
+
+[node name="PresetContainer" type="HBoxContainer" parent="PanelContainer/MarginContainer/MainVBox/LayoutsView"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SaveInputHBox" type="HBoxContainer" parent="PanelContainer/MarginContainer/MainVBox/LayoutsView"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SceneNameInput" type="LineEdit" parent="PanelContainer/MarginContainer/MainVBox/LayoutsView/SaveInputHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 15
+placeholder_text = "Enter layout name (e.g. Living Room, Office)..."
+
+[node name="SaveButton" type="Button" parent="PanelContainer/MarginContainer/MainVBox/LayoutsView/SaveInputHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 40)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "💾 Save Current"
+
+[node name="MeasureView" type="VBoxContainer" parent="PanelContainer/MarginContainer/MainVBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="RoomCard" type="PanelContainer" parent="PanelContainer/MarginContainer/MainVBox/MeasureView"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+
+[node name="RoomCardVBox" type="VBoxContainer" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RoomCardHeaderHBox" type="HBoxContainer" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox"]
+layout_mode = 2
+
+[node name="RoomCardTitle" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/RoomCardHeaderHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.25, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "🏛 Scanned Physical Room Dimensions"
+
+[node name="RefreshBoundsButton" type="Button" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/RoomCardHeaderHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "🔄 Recalculate"
+
+[node name="DimensionsGrid" type="GridContainer" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 6
+columns = 3
+
+[node name="HeightLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/DimensionsGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Height (Ceiling): --"
+
+[node name="WidthLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/DimensionsGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Width (Span X): --"
+
+[node name="LengthLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/DimensionsGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Length (Span Z): --"
+
+[node name="AreaLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/DimensionsGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.9, 0.7, 1)
+theme_override_font_sizes/font_size = 15
+text = "Floor Area: --"
+
+[node name="VolumeLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/DimensionsGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.9, 0.7, 1)
+theme_override_font_sizes/font_size = 15
+text = "Room Volume: --"
+
+[node name="SurfacesLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/DimensionsGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 15
+text = "Surfaces: 0 detected"
+
+[node name="TapeCard" type="PanelContainer" parent="PanelContainer/MarginContainer/MainVBox/MeasureView"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+
+[node name="TapeVBox" type="VBoxContainer" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/TapeCard"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TapeTitle" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/TapeCard/TapeVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.25, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "📏 3D Tape Measure (Point-to-Point)"
+
+[node name="TapeInstructions" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/TapeCard/TapeVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 0.95, 1)
+theme_override_font_sizes/font_size = 15
+text = "Click 'Start Tape Measure', then click Point A on any wall/floor, then Point B."
+
+[node name="TapeButtonsHBox" type="HBoxContainer" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/TapeCard/TapeVBox"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="ToggleTapeButton" type="Button" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/TapeCard/TapeVBox/TapeButtonsHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "📏 Start Tape Measure"
+
+[node name="ClearTapeButton" type="Button" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/TapeCard/TapeVBox/TapeButtonsHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "🗑 Clear Tape Lines"
+
+[node name="UnitToggleButton" type="Button" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/TapeCard/TapeVBox/TapeButtonsHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Unit: Meters (m)"
+
+[node name="FooterHBox" type="HBoxContainer" parent="PanelContainer/MarginContainer/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ClearButton" type="Button" parent="PanelContainer/MarginContainer/MainVBox/FooterHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "🗑 Clear Anchors"
+
+[node name="CaptureButton" type="Button" parent="PanelContainer/MarginContainer/MainVBox/FooterHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "📷 Capture Room"
+
+[node name="StatusLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/FooterHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 15
+text = ""
+horizontal_alignment = 2
+vertical_alignment = 1

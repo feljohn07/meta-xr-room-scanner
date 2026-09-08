@@ -1,0 +1,48 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://measurement_line.gd" id="1_meas"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_glow_cyan"]
+shading_mode = 0
+albedo_color = Color(0.15, 0.9, 1, 1)
+disable_ambient_light = true
+disable_fog = true
+no_depth_test = true
+render_priority = 15
+
+[sub_resource type="SphereMesh" id="SphereMesh_point"]
+material = SubResource("StandardMaterial3D_glow_cyan")
+radius = 0.025
+height = 0.05
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_line"]
+resource_local_to_scene = true
+material = SubResource("StandardMaterial3D_glow_cyan")
+top_radius = 0.008
+bottom_radius = 0.008
+height = 1.0
+
+[node name="MeasurementLine" type="Node3D"]
+script = ExtResource("1_meas")
+
+[node name="StartSphere" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_point")
+
+[node name="EndSphere" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_point")
+
+[node name="CylinderLine" type="MeshInstance3D" parent="."]
+mesh = SubResource("CylinderMesh_line")
+
+[node name="Label3D" type="Label3D" parent="."]
+billboard = 1
+no_depth_test = true
+render_priority = 20
+modulate = Color(0.2, 1.0, 1.0, 1)
+outline_modulate = Color(0, 0, 0, 1)
+text = "0.00 m"
+font_size = 28
+outline_size = 8
+pixel_size = 0.004
+horizontal_alignment = 1
+vertical_alignment = 1
