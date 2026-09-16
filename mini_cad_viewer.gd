@@ -137,9 +137,13 @@ func start_grab(controller: Node3D) -> void:
 	is_grabbed = true
 	grabbing_controller = controller
 	grab_local_transform = controller.global_transform.affine_inverse() * global_transform
+	if controller is XRController3D:
+		controller.trigger_haptic_pulse("haptic", 100.0, 0.5, 0.06, 0.0)
 
 
 func end_grab() -> void:
+	if is_grabbed and grabbing_controller is XRController3D:
+		grabbing_controller.trigger_haptic_pulse("haptic", 80.0, 0.3, 0.04, 0.0)
 	is_grabbed = false
 	grabbing_controller = null
 
@@ -230,7 +234,11 @@ func rebuild_cad_model(preview_scene_name: String = "") -> void:
 			anchor_count += 1
 			var data = anchors_dict[uuid]
 			var col = Color(data.get("color", "#00FFFF"))
-			_spawn_mini_anchor(Vector3.ZERO, col, uuid)
+			var rel_pos := Vector3.ZERO
+			if data is Dictionary and data.has("pos") and data["pos"] is Array and data["pos"].size() == 3:
+				var world_pos = Vector3(data["pos"][0], data["pos"][1], data["pos"][2])
+				rel_pos = world_pos - bounds_center
+			_spawn_mini_anchor(rel_pos, col, str(uuid))
 	elif spatial_anchor_manager:
 		# Use live world anchors
 		for c in spatial_anchor_manager.get_children():

@@ -67,13 +67,14 @@ func _ready() -> void:
 	if scene_manager and not scene_manager.child_entered_tree.is_connected(_on_scene_anchor_child_entered):
 		scene_manager.child_entered_tree.connect(_on_scene_anchor_child_entered)
 
-	if right_hand and not right_hand.button_released.is_connected(_on_right_hand_button_released):
-		right_hand.button_released.connect(_on_right_hand_button_released)
 	if right_hand_pointer:
 		if not right_hand_pointer.button_released.is_connected(_on_right_hand_button_released):
 			right_hand_pointer.button_released.connect(_on_right_hand_button_released)
 		if not right_hand_pointer.button_pressed.is_connected(_on_right_hand_button_pressed):
 			right_hand_pointer.button_pressed.connect(_on_right_hand_button_pressed)
+
+	if depth_testing_mesh:
+		depth_testing_mesh.set_surface_override_material(0, ENVIRONMENT_DEPTH_MATERIAL if global_environment_depth_enabled else BLUE_MATERIAL)
 
 	_setup_scene_menu()
 
@@ -161,6 +162,11 @@ func clear_tape_measurements() -> void:
 	if tape_measure_preview_line:
 		tape_measure_preview_line.visible = false
 	_update_tape_ui_state()
+
+
+func trigger_haptic(controller: XRController3D, frequency: float = 100.0, amplitude: float = 0.5, duration: float = 0.05) -> void:
+	if controller:
+		controller.trigger_haptic_pulse("haptic", frequency, amplitude, duration, 0.0)
 
 
 func _update_tape_ui_state() -> void:
@@ -400,7 +406,24 @@ func save_current_layout(scene_name: String) -> void:
 	for uuid in spatial_anchor_manager.get_anchor_uuids():
 		var entity: OpenXRFbSpatialEntity = spatial_anchor_manager.get_spatial_entity(uuid)
 		if entity:
-			anchor_data[uuid] = entity.custom_data
+			var custom_data = entity.custom_data
+			var color_str = "#00FFFF"
+			if custom_data is Dictionary:
+				color_str = custom_data.get("color", "#00FFFF")
+
+			var pos_arr := [0.0, 0.0, 0.0]
+			var rot_arr := [0.0, 0.0, 0.0]
+			for child in spatial_anchor_manager.get_children():
+				if child is XRAnchor3D and (str(child.tracker) == str(uuid) or child.name == str(uuid)):
+					pos_arr = [child.global_position.x, child.global_position.y, child.global_position.z]
+					rot_arr = [child.global_rotation.x, child.global_rotation.y, child.global_rotation.z]
+					break
+
+			anchor_data[uuid] = {
+				"color": color_str,
+				"pos": pos_arr,
+				"rot": rot_arr
+			}
 
 	saved_scenes[scene_name] = {
 		"anchors": anchor_data,
@@ -657,6 +680,7 @@ func _physics_process(_delta: float) -> void:
 
 
 func _on_left_hand_button_pressed(name: String) -> void:
+	trigger_haptic(left_hand, 120.0, 0.3, 0.04)
 	if name == "ax_button":
 		display_scene_and_spatial_anchors(not scene_and_spatial_anchors_displayed)
 	elif name == "by_button":
@@ -681,6 +705,7 @@ func _on_right_hand_button_pressed(name: String) -> void:
 			if hit != Vector2(-1.0, -1.0):
 				if function_pointer and function_pointer.has_method("_do_select"):
 					function_pointer._do_select(true)
+				trigger_haptic(right_hand_pointer, 150.0, 0.25, 0.03)
 				return
 
 		# If user is pointing at CAD viewer controls bar
@@ -689,6 +714,7 @@ func _on_right_hand_button_pressed(name: String) -> void:
 			if hit != Vector2(-1.0, -1.0):
 				if function_pointer and function_pointer.has_method("_do_select"):
 					function_pointer._do_select(true)
+				trigger_haptic(right_hand_pointer, 150.0, 0.25, 0.03)
 				return
 
 		# If user clicks the grab handle of the Mini CAD Viewer
@@ -696,6 +722,7 @@ func _on_right_hand_button_pressed(name: String) -> void:
 			var collider = right_hand_pointer_raycast.get_collider()
 			if mini_cad_viewer and mini_cad_viewer.visible and mini_cad_viewer.grab_handle_area and collider == mini_cad_viewer.grab_handle_area:
 				mini_cad_viewer.start_grab(right_hand_pointer)
+				trigger_haptic(right_hand_pointer, 100.0, 0.5, 0.06)
 				return
 
 		# If tape measure mode is active, handle Point A and Point B placement
@@ -715,6 +742,7 @@ func _on_right_hand_button_pressed(name: String) -> void:
 				tape_measure_preview_line.visible = true
 				tape_measure_preview_line.update_points(tape_measure_point_a, hit_point, use_imperial_units)
 				_update_tape_ui_state()
+				trigger_haptic(right_hand_pointer, 120.0, 0.45, 0.05)
 			else:
 				# Complete Point B and pin measurement in world
 				var final_line = MEASUREMENT_LINE_SCENE.instantiate()
@@ -726,6 +754,7 @@ func _on_right_hand_button_pressed(name: String) -> void:
 				if tape_measure_preview_line:
 					tape_measure_preview_line.visible = false
 				_update_tape_ui_state()
+				trigger_haptic(right_hand_pointer, 160.0, 0.7, 0.08)
 			return
 
 		if right_hand_pointer_raycast.is_colliding():
@@ -733,6 +762,7 @@ func _on_right_hand_button_pressed(name: String) -> void:
 				var anchor_parent = selected_spatial_anchor_node.get_parent()
 				if anchor_parent is XRAnchor3D:
 					spatial_anchor_manager.untrack_anchor(anchor_parent.tracker)
+					trigger_haptic(right_hand_pointer, 100.0, 0.5, 0.06)
 			else:
 				var anchor_transform := Transform3D()
 				anchor_transform.origin = right_hand_pointer_raycast.get_collision_point()
@@ -746,20 +776,24 @@ func _on_right_hand_button_pressed(name: String) -> void:
 					anchor_transform.basis = Basis.looking_at(right_hand_pointer_raycast.get_collision_normal())
 
 				spatial_anchor_manager.create_anchor(anchor_transform, {color = COLORS[randi() % COLORS.size()]})
+				trigger_haptic(right_hand_pointer, 120.0, 0.6, 0.07)
 	elif name == "ax_button":
 		var anchor_transform := right_hand.transform
 		spatial_anchor_manager.create_anchor(anchor_transform, {color = COLORS[randi() % COLORS.size()]})
+		trigger_haptic(right_hand, 140.0, 0.6, 0.07)
 	elif name == "by_button":
 		global_environment_depth_enabled = not global_environment_depth_enabled
 
 		environment_depth_node.visible = global_environment_depth_enabled
-		depth_testing_mesh.set_surface_override_material(0, BLUE_MATERIAL if global_environment_depth_enabled else ENVIRONMENT_DEPTH_MATERIAL)
+		depth_testing_mesh.set_surface_override_material(0, ENVIRONMENT_DEPTH_MATERIAL if global_environment_depth_enabled else BLUE_MATERIAL)
+		trigger_haptic(right_hand, 110.0, 0.35, 0.04)
 
 
 func _on_right_hand_button_released(name: String) -> void:
 	if name == "trigger_click" or name == "trigger":
 		if mini_cad_viewer and mini_cad_viewer.is_grabbed:
 			mini_cad_viewer.end_grab()
+			trigger_haptic(right_hand_pointer, 80.0, 0.3, 0.04)
 		if function_pointer and function_pointer.has_method("_do_select"):
 			function_pointer._do_select(false)
 

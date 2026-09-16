@@ -12,6 +12,7 @@ uniform float subdivisions : hint_range(1.0, 20.0) = 5.0;
 uniform float line_thickness : hint_range(0.001, 0.05) = 0.003;
 uniform float border_thickness : hint_range(0.001, 0.1) = 0.015;
 uniform vec4 border_color : source_color = vec4(0.0, 0.9, 1.0, 1.0);
+uniform vec2 baseplate_half_size = vec2(0.6, 0.6);
 
 varying vec3 local_pos;
 
@@ -41,8 +42,7 @@ void fragment() {
 	float axis_z_factor = 1.0 - smoothstep(0.0, line_thickness * 2.0, dist_z_axis);
 	
 	// Outer Border
-	vec2 half_size = vec2(0.5, 0.5); // assumes 1x1 baseplate mesh normalized
-	vec2 dist_to_edge = half_size - abs(local_pos.xz);
+	vec2 dist_to_edge = baseplate_half_size - abs(local_pos.xz);
 	float edge_dist = min(dist_to_edge.x, dist_to_edge.y);
 	float border_factor = 1.0 - smoothstep(0.0, border_thickness, edge_dist);
 	

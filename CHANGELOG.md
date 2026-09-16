@@ -4,6 +4,29 @@ All notable changes, architectural features, fixes, and documentation for the **
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-09-16
+
+### Added
+- **Tactile Haptic Feedback System**:
+  - Integrated `trigger_haptic()` utilizing native OpenXR `"haptic"` vibration output.
+  - Distinct vibration profiles for UI button clicks (150Hz / 0.25 amp), anchor creation (120Hz / 0.6 amp), anchor deletion (100Hz / 0.5 amp), tape measure Point A and B locking (120Hz-160Hz), and CAD workstation grab/release (100Hz / 80Hz).
+- **Spatial Anchor Coordinate Serialization**:
+  - Extended multi-layout storage (`user://saved_anchor_scenes.json`) to persist 3D position (`pos`) and rotation (`rot`) vectors alongside entity custom data.
+  - Reconstructed physical anchor positions in `mini_cad_viewer.gd` when previewing inactive saved scenes, preventing dollhouse anchor collapse at the origin.
+
+### Fixed
+- **Mini CAD Workstation Grab Hit Testing**:
+  - Expanded pointer `RayCast3D.collision_mask` from `6` to `7` (including Layer 1: Virtual Environment), enabling the laser to hit the front handle bar Area3D and pick up the workstation.
+- **Environment Depth Material Inversion**:
+  - Corrected inverted material assignment in `main.gd` where unoccluded `BLUE_MATERIAL` was erroneously applied when depth occlusion was enabled.
+  - Initialized `DepthTestingMesh` on startup with `environment_depth_material.tres` matching initial enabled state.
+- **Baseplate Grid Shader Border Alignment**:
+  - Replaced hardcoded $0.5\text{m}$ border in `assets/cad_blueprint_grid.gdshader` with dynamic `baseplate_half_size = vec2(0.6, 0.6)` matching the $1.2\text{m}$ baseplate mesh in `mini_cad_viewer.tscn`.
+- **Right Controller Input Deduplication**:
+  - Removed duplicate scene-level and script-level signal connections from `RightHand`, routing all trigger and action events strictly through `RightHandPointer` to prevent double-firing.
+- **Cleaned Orphaned UIDs**:
+  - Removed dangling `test_scene_persistence.gd.uid`.
+
 ---
 
 ## [1.3.0] - 2026-09-08
