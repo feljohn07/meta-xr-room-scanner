@@ -42,6 +42,7 @@ var _timestamp_when_pinch_detected := 0
 
 # the parent controller
 var _controller: XRController3D
+var _tracker_name: String = ""
 
 # This Timer is started when _pinching changes from false->true, to detect if fingers have been
 # pinched for a long time.
@@ -63,11 +64,37 @@ func _enter_tree() -> void:
 		return
 
 	_controller = parent_node
+	_tracker_name = "/user/hand_tracker/" + ("left" if _controller.tracker == &"left_hand" else "right")
 	_controller.input_float_changed.connect(_on_input_float_changed)
 	if not _controller.button_pressed.is_connected(_on_button_pressed):
 		_controller.button_pressed.connect(_on_button_pressed)
 	if not _controller.button_released.is_connected(_on_button_released):
 		_controller.button_released.connect(_on_button_released)
+
+
+func _process(_delta: float) -> void:
+	if _tracker_name.is_empty():
+		return
+
+	var tracker = XRServer.get_tracker(_tracker_name) as XRHandTracker
+	if tracker and tracker.has_tracking_data:
+		var thumb_tf: Transform3D = tracker.get_hand_joint_transform(XRHandTracker.HAND_JOINT_THUMB_TIP)
+		var index_tf: Transform3D = tracker.get_hand_joint_transform(XRHandTracker.HAND_JOINT_INDEX_FINGER_TIP)
+		var dist: float = thumb_tf.origin.distance_to(index_tf.origin)
+
+		var optical_strength: float = clampf(inverse_lerp(0.055, 0.022, dist), 0.0, 1.0)
+		_current_strength = optical_strength
+		pinch_strength_changed.emit(_current_strength)
+
+		if not _pinching:
+			if optical_strength > 0.85:
+				_pinching = true
+				_timestamp_when_pinch_detected = Time.get_ticks_msec()
+				if _pinching_held_timer:
+					_pinching_held_timer.start(pinch_held_duration)
+		else:
+			if optical_strength < 0.40:
+				_end_pinch()
 
 
 func _exit_tree() -> void:

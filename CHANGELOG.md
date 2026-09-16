@@ -4,6 +4,20 @@ All notable changes, architectural features, fixes, and documentation for the **
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-09-16
+
+### Fixed
+- **Optical Joint-Distance Pinch Recognition (`hand_pinch_detector.gd`)**:
+  - Replaced controller action reliance with real-time Euclidean distance tracking between `HAND_JOINT_THUMB_TIP` and `HAND_JOINT_INDEX_FINGER_TIP` ($d \le 0.024\text{m}$ pinch trigger, $d \ge 0.040\text{m}$ release).
+  - Enables 100% reliable bare-hand pinch detection on Meta Quest without requiring OpenXR action map controller emulation bindings.
+- **Physical Hand Anchoring for Tablet & Wrist HUD (`main.gd`, `hand_visuals.gd`)**:
+  - Dynamically updates `wrist_menu` and `scene_menu_viewport` transforms in `_physics_process()` using `HAND_JOINT_WRIST` and `HAND_JOINT_PALM` when optical tracking is active.
+  - Fixes frozen menu positioning caused by stationary `XRController3D` nodes when controllers are placed down.
+- **Bare-Hand Aim Ray Alignment (`hand_visuals.gd`, `main.gd`)**:
+  - Dynamically calculates the pointer origin from the thumb/index pinch midpoint with forward vector projecting from the wrist through the fingers.
+
+---
+
 ## [1.6.0] - 2026-09-16
 
 ### Added

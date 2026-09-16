@@ -98,6 +98,51 @@ func is_hand_tracking_active() -> bool:
 	return _is_hand_tracking
 
 
+func get_wrist_transform() -> Transform3D:
+	var tracker_path = "/user/hand_tracker/" + hand
+	var tracker = XRServer.get_tracker(tracker_path) as XRHandTracker
+	if tracker and tracker.has_tracking_data and _xr_origin:
+		var wrist_tf = tracker.get_hand_joint_transform(XRHandTracker.HAND_JOINT_WRIST)
+		return _xr_origin.global_transform * wrist_tf
+	elif _controller:
+		return _controller.global_transform
+	return global_transform
+
+
+func get_palm_transform() -> Transform3D:
+	var tracker_path = "/user/hand_tracker/" + hand
+	var tracker = XRServer.get_tracker(tracker_path) as XRHandTracker
+	if tracker and tracker.has_tracking_data and _xr_origin:
+		var palm_tf = tracker.get_hand_joint_transform(XRHandTracker.HAND_JOINT_PALM)
+		return _xr_origin.global_transform * palm_tf
+	elif _controller:
+		return _controller.global_transform
+	return global_transform
+
+
+func get_aim_transform() -> Transform3D:
+	var tracker_path = "/user/hand_tracker/" + hand
+	var tracker = XRServer.get_tracker(tracker_path) as XRHandTracker
+	if tracker and tracker.has_tracking_data and _xr_origin:
+		var thumb_tf = tracker.get_hand_joint_transform(XRHandTracker.HAND_JOINT_THUMB_TIP)
+		var index_tf = tracker.get_hand_joint_transform(XRHandTracker.HAND_JOINT_INDEX_FINGER_TIP)
+		var wrist_tf = tracker.get_hand_joint_transform(XRHandTracker.HAND_JOINT_WRIST)
+
+		var origin_tf = _xr_origin.global_transform
+		var pinch_pt = origin_tf * ((thumb_tf.origin + index_tf.origin) * 0.5)
+		var wrist_pt = origin_tf * wrist_tf.origin
+		var forward = (pinch_pt - wrist_pt).normalized()
+
+		var up = (origin_tf.basis * wrist_tf.basis.y).normalized()
+		var right = forward.cross(up).normalized()
+		up = right.cross(forward).normalized()
+
+		return Transform3D(Basis(right, up, -forward), pinch_pt)
+	elif _controller:
+		return _controller.global_transform
+	return global_transform
+
+
 func _process(_delta: float) -> void:
 	var tracker_path = "/user/hand_tracker/" + hand
 	var tracker = XRServer.get_tracker(tracker_path) as XRHandTracker

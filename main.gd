@@ -734,26 +734,60 @@ func anchor_menu_to_hand() -> void:
 		return
 
 	var is_right = (dominant_hand == "right")
-	var target_hand: XRController3D = left_hand if is_right else right_hand
-	if not target_hand:
-		return
-
-	if scene_menu_viewport.get_parent() != target_hand:
-		scene_menu_viewport.get_parent().remove_child(scene_menu_viewport)
-		target_hand.add_child(scene_menu_viewport)
-
-	scene_menu_viewport.pixel_size = 0.0005
-
-	var x_offset = 0.04 if is_right else -0.04
 	var is_hand_tracking = false
 	if is_right and left_hand_visuals and left_hand_visuals.is_hand_tracking_active():
 		is_hand_tracking = true
 	elif not is_right and right_hand_visuals and right_hand_visuals.is_hand_tracking_active():
 		is_hand_tracking = true
 
-	var local_pos = Vector3(x_offset, 0.14, -0.08) if is_hand_tracking else Vector3(x_offset, 0.18, -0.12)
-	var local_rot = Vector3(deg_to_rad(-35.0 if is_hand_tracking else -40.0), 0.0, 0.0)
-	scene_menu_viewport.transform = Transform3D(Basis.from_euler(local_rot), local_pos)
+	scene_menu_viewport.pixel_size = 0.0005
+
+	if is_hand_tracking:
+		var xr_origin: Node = $XROrigin3D
+		if scene_menu_viewport.get_parent() != xr_origin:
+			scene_menu_viewport.get_parent().remove_child(scene_menu_viewport)
+			xr_origin.add_child(scene_menu_viewport)
+		_update_hand_tracking_transforms()
+	else:
+		var target_hand: XRController3D = left_hand if is_right else right_hand
+		if not target_hand:
+			return
+		if scene_menu_viewport.get_parent() != target_hand:
+			scene_menu_viewport.get_parent().remove_child(scene_menu_viewport)
+			target_hand.add_child(scene_menu_viewport)
+
+		var x_offset = 0.04 if is_right else -0.04
+		var local_pos = Vector3(x_offset, 0.18, -0.12)
+		var local_rot = Vector3(deg_to_rad(-40.0), 0.0, 0.0)
+		scene_menu_viewport.transform = Transform3D(Basis.from_euler(local_rot), local_pos)
+
+
+func _update_hand_tracking_transforms() -> void:
+	var is_right_dom = (dominant_hand == "right")
+	var off_visuals: HandVisuals = left_hand_visuals if is_right_dom else right_hand_visuals
+	var dom_visuals: HandVisuals = right_hand_visuals if is_right_dom else left_hand_visuals
+
+	# 1. Update off-hand Wrist Menu and Tablet if off-hand has optical tracking active
+	if off_visuals and off_visuals.is_hand_tracking_active():
+		var wrist_tf = off_visuals.get_wrist_transform()
+		if wrist_menu:
+			wrist_menu.global_position = wrist_tf.origin + wrist_tf.basis.y * 0.04
+			wrist_menu.global_transform.basis = wrist_tf.basis
+
+		if scene_menu_viewport and scene_menu_viewport.visible:
+			var palm_tf = off_visuals.get_palm_transform()
+			var target_pos = palm_tf.origin + palm_tf.basis.y * 0.14 - palm_tf.basis.z * 0.08
+			scene_menu_viewport.global_position = target_pos
+			if xr_camera:
+				scene_menu_viewport.look_at(xr_camera.global_position, Vector3.UP)
+				scene_menu_viewport.rotate_y(PI)
+				scene_menu_viewport.rotate_object_local(Vector3.RIGHT, deg_to_rad(-25.0))
+
+	# 2. Update dominant hand pointer ray if dominant hand has optical tracking active
+	if dom_visuals and dom_visuals.is_hand_tracking_active():
+		var active_ptr = get_active_pointer()
+		if active_ptr:
+			active_ptr.global_transform = dom_visuals.get_aim_transform()
 
 
 func _on_hand_pinch_tapped(hand_name: String) -> void:
@@ -895,6 +929,8 @@ func display_scene_and_spatial_anchors(value: bool) -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	_update_hand_tracking_transforms()
+
 	var active_pointer = get_active_pointer()
 	var active_raycast = get_active_raycast()
 	var active_colliding_mesh = get_active_colliding_mesh()
