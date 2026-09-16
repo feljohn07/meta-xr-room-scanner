@@ -23,6 +23,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Dynamic `dominant_hand` switching (`"right"` vs `"left"`).
   - Symmetrical `LeftHandPointer` under `XROrigin3D` matching `RightHandPointer` with independent `FunctionPointer`, `ScenePointerMesh`, `SceneCollidingMesh`, `ReticleRing`, and `RayCast3D`.
   - Automatic wrist menu reparenting and transform mirroring to the opposing hand when dominant hand is toggled.
+- **Hand-Anchored Scene Menu Tablet (`SceneMenuViewport`)**:
+  - Replaced world-fixed 1.2m spawn with an ergonomic handheld tablet anchored directly to the non-dominant controller.
+  - Automatically transfers and mirrors between hands when dominant hand is toggled.
+  - Scaled pixel size to $0.0005$ ($45\text{cm} \times 30\text{cm}$ handheld clipboard) tilted $-40^\circ$ toward user eyes.
 - **Spatial Anchor Customization & Labeling**:
   - Anchor color palette cycling across 8 distinct architectural hues.
   - Active color preview indicator on the wrist HUD.

@@ -128,6 +128,9 @@ func set_dominant_hand(hand: String) -> void:
 			wrist_menu.transform = Transform3D(Basis(Vector3(1, 0, 0), Vector3(0, 0.866025, 0.5), Vector3(0, -0.5, 0.866025)), Vector3(-0.05, 0.04, 0.06))
 		wrist_menu.set_dominant_hand(dominant_hand)
 
+	if scene_menu_viewport and scene_menu_viewport.visible:
+		anchor_menu_to_hand()
+
 
 func _ready() -> void:
 	super._ready()
@@ -694,8 +697,29 @@ func toggle_scene_menu(enable = null) -> void:
 
 	scene_menu_viewport.visible = enable
 	if enable:
-		position_menu_in_front_of_player()
+		anchor_menu_to_hand()
 		_update_scene_ui()
+
+
+func anchor_menu_to_hand() -> void:
+	if not scene_menu_viewport:
+		return
+
+	var is_right = (dominant_hand == "right")
+	var target_hand: XRController3D = left_hand if is_right else right_hand
+	if not target_hand:
+		return
+
+	if scene_menu_viewport.get_parent() != target_hand:
+		scene_menu_viewport.get_parent().remove_child(scene_menu_viewport)
+		target_hand.add_child(scene_menu_viewport)
+
+	scene_menu_viewport.pixel_size = 0.0005
+
+	var x_offset = 0.04 if is_right else -0.04
+	var local_pos = Vector3(x_offset, 0.18, -0.12)
+	var local_rot = Vector3(deg_to_rad(-40.0), 0.0, 0.0)
+	scene_menu_viewport.transform = Transform3D(Basis.from_euler(local_rot), local_pos)
 
 
 func toggle_cad_viewer(enable = null) -> void:
