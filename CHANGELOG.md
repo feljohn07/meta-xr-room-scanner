@@ -4,6 +4,33 @@ All notable changes, architectural features, fixes, and documentation for the **
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-09-16
+
+### Added
+- **Interactive Palm/Wrist Watch HUD (`wrist_menu.tscn`, `wrist_menu.gd`, `wrist_menu_panel.tscn`, `wrist_menu_panel.gd`)**:
+  - Compact 2D-in-3D viewport HUD ($360 \times 240$, $0.0004$ pixel scale) mounted on the non-dominant wrist.
+  - Glance-angle orientation detection ($\vec{V}_{\text{wrist}} \cdot \vec{V}_{\text{to\_cam}} > 0.35$ with $0.20$ hysteresis) automatically displaying the watch face only when turned toward the user's headset.
+  - Quick action controls: Passthrough toggle, Mini CAD dollhouse toggle, Tape measure activate/stop, Undo last measurement, Layout Hub summon, Anchor Color cycling preview, and Dominant Hand switch.
+  - Real-time status display showing active layout name, anchor count, and cumulative measurement distance with segment count.
+- **Surface-Normal Snapping Laser Reticle Ring (`ReticleRing`)**:
+  - 3D Torus mesh with glow unshaded cyan material (`TorusMesh_reticle`, inner radius 0.026m, outer radius 0.034m) attached to `SceneCollidingMesh`.
+  - Orthogonal surface-normal alignment in `_physics_process()` with $+3\text{mm}$ offset along the surface normal, eliminating Z-fighting and projecting flush visual feedback on walls, floors, and slanted obstacles.
+- **Advanced 3D Measurement Tools & Metric Accumulator**:
+  - **Undo Last Segment**: Quick one-tap rollback of the most recently placed 3D measurement segment without clearing the entire session.
+  - **Individual Badge Hover & Deletion**: Interactive `BadgeArea` collider ($0.09\text{m}$ radius sphere) on measurement lines with red hover highlight styling and click-to-delete support.
+  - **Cumulative Distance Metrics**: Real-time summation of total measured line lengths with unit conversion ($m$ and $\text{ft}$) piped directly into the Wrist HUD and UI Hub.
+- **Dominant Hand Preference Toggle & Symmetrical Pointers**:
+  - Dynamic `dominant_hand` switching (`"right"` vs `"left"`).
+  - Symmetrical `LeftHandPointer` under `XROrigin3D` matching `RightHandPointer` with independent `FunctionPointer`, `ScenePointerMesh`, `SceneCollidingMesh`, `ReticleRing`, and `RayCast3D`.
+  - Automatic wrist menu reparenting and transform mirroring to the opposing hand when dominant hand is toggled.
+- **Spatial Anchor Customization & Labeling**:
+  - Anchor color palette cycling across 8 distinct architectural hues.
+  - Active color preview indicator on the wrist HUD.
+  - Billboarded `Label3D` node on anchors displaying semantic text labels above pins with red selection highlight styling.
+  - Persistent serialization of custom anchor label data in `user://saved_anchor_scenes.json`.
+
+---
+
 ## [1.4.0] - 2026-09-16
 
 ### Added

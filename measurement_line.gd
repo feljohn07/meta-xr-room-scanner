@@ -1,13 +1,18 @@
 extends Node3D
 
+signal delete_requested(line_node: Node3D)
+
 @onready var start_sphere: MeshInstance3D = $StartSphere
 @onready var end_sphere: MeshInstance3D = $EndSphere
 @onready var cylinder_mesh_instance: MeshInstance3D = $CylinderLine
 @onready var label_3d: Label3D = $Label3D
+@onready var badge_area: Area3D = get_node_or_null("BadgeArea")
 
 var point_a := Vector3.ZERO
 var point_b := Vector3.ZERO
+var distance: float = 0.0
 var use_imperial := false
+var is_highlighted := false
 
 
 func _ready() -> void:
@@ -31,6 +36,8 @@ func update_points(p_a: Vector3, p_b: Vector3, p_use_imperial: bool = false) -> 
 
 	var diff = p_b - p_a
 	var dist = diff.length()
+
+	distance = dist
 
 	# Component breakdown: width (X), height (Y), length (Z)
 	var dx = absf(diff.x)
@@ -57,7 +64,10 @@ func update_points(p_a: Vector3, p_b: Vector3, p_use_imperial: bool = false) -> 
 
 		if label_3d:
 			label_3d.visible = true
-			label_3d.global_position = (p_a + p_b) / 2.0 + Vector3(0, 0.08, 0)
+			var badge_pos = (p_a + p_b) / 2.0 + Vector3(0, 0.08, 0)
+			label_3d.global_position = badge_pos
+			if badge_area:
+				badge_area.global_position = badge_pos
 
 			if use_imperial:
 				var ft_total = dist * 3.28084
@@ -74,3 +84,17 @@ func update_points(p_a: Vector3, p_b: Vector3, p_use_imperial: bool = false) -> 
 			cylinder_mesh_instance.visible = false
 		if label_3d:
 			label_3d.visible = false
+		if badge_area:
+			badge_area.visible = false
+
+
+func set_highlight(value: bool) -> void:
+	is_highlighted = value
+	if not label_3d:
+		return
+	if is_highlighted:
+		label_3d.modulate = Color(1.0, 0.35, 0.35)
+		label_3d.outline_modulate = Color(0.6, 0.0, 0.0)
+	else:
+		label_3d.modulate = Color(0.2, 1.0, 1.0)
+		label_3d.outline_modulate = Color(0.0, 0.0, 0.0)

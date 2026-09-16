@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" uid="uid://dcwibwtseri8h" path="res://addons/common/viewport_2d_in_3d/viewport_2d_in_3d.tscn" id="7_v2d3d"]
 [ext_resource type="PackedScene" uid="uid://cqs8c3rq6cxvk" path="res://addons/common/viewport_2d_in_3d/function_pointer.tscn" id="8_fptr"]
 [ext_resource type="PackedScene" path="res://mini_cad_viewer.tscn" id="9_cad"]
+[ext_resource type="PackedScene" uid="uid://d1g4h7j0k3m5p" path="res://wrist_menu.tscn" id="10_wrist"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_0x6cv"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -30,8 +31,21 @@ size = Vector3(0.1, 0.1, 0.1)
 size = Vector3(0.01, 0.01, 5)
 
 [sub_resource type="SphereMesh" id="SphereMesh_kdpqm"]
-radius = 0.01
-height = 0.02
+radius = 0.008
+height = 0.016
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_reticle"]
+shading_mode = 0
+albedo_color = Color(0, 0.95, 1, 0.9)
+no_depth_test = true
+render_priority = 10
+
+[sub_resource type="TorusMesh" id="TorusMesh_reticle"]
+material = SubResource("StandardMaterial3D_reticle")
+inner_radius = 0.026
+outer_radius = 0.034
+rings = 16
+ring_segments = 8
 
 [node name="Main" type="Node3D" unique_id=1577214552]
 script = ExtResource("1_fsva1")
@@ -63,6 +77,10 @@ pixel_size = 0.001
 text = "[Y] Toggle Passthrough
 [X] Toggle Edit Anchors
 [Menu] Scene Layout Menu"
+
+[node name="WristMenu" parent="XROrigin3D/LeftHand" instance=ExtResource("10_wrist")]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0.05, 0.04, 0.06)
 
 [node name="RightHand" type="XRController3D" parent="XROrigin3D" unique_id=925077199]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.478861, 0.468292, -0.241097)
@@ -97,7 +115,32 @@ mesh = SubResource("BoxMesh_d27jm")
 [node name="SceneCollidingMesh" type="MeshInstance3D" parent="XROrigin3D/RightHandPointer" unique_id=1462032861]
 mesh = SubResource("SphereMesh_kdpqm")
 
+[node name="ReticleRing" type="MeshInstance3D" parent="XROrigin3D/RightHandPointer/SceneCollidingMesh"]
+mesh = SubResource("TorusMesh_reticle")
+
 [node name="RayCast3D" type="RayCast3D" parent="XROrigin3D/RightHandPointer" unique_id=1520920348]
+target_position = Vector3(0, 0, -10)
+collision_mask = 7
+collide_with_areas = true
+
+[node name="LeftHandPointer" type="XRController3D" parent="XROrigin3D" unique_id=1157989774]
+visible = false
+tracker = &"left_hand"
+
+[node name="FunctionPointer" parent="XROrigin3D/LeftHandPointer" unique_id=987123458 instance=ExtResource("8_fptr")]
+
+[node name="ScenePointerMesh" type="MeshInstance3D" parent="XROrigin3D/LeftHandPointer" unique_id=1664739012]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -2.5)
+mesh = SubResource("BoxMesh_d27jm")
+
+[node name="SceneCollidingMesh" type="MeshInstance3D" parent="XROrigin3D/LeftHandPointer" unique_id=1462032862]
+mesh = SubResource("SphereMesh_kdpqm")
+
+[node name="ReticleRing" type="MeshInstance3D" parent="XROrigin3D/LeftHandPointer/SceneCollidingMesh"]
+mesh = SubResource("TorusMesh_reticle")
+
+[node name="RayCast3D" type="RayCast3D" parent="XROrigin3D/LeftHandPointer" unique_id=1520920349]
+enabled = false
 target_position = Vector3(0, 0, -10)
 collision_mask = 7
 collide_with_areas = true

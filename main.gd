@@ -25,6 +25,13 @@ var tape_measure_preview_line: Node3D = null
 var placed_measurements: Array[Node3D] = []
 var use_imperial_units: bool = false
 var _last_trigger_press_msec: int = 0
+var hovered_measurement_line: Node3D = null
+
+# Dominant Hand & Customization
+var dominant_hand: String = "right"
+var active_anchor_color_index: int = 4 # Default Cyan (#00FFFF)
+var active_anchor_color: Color = Color("#00FFFF")
+var active_anchor_label: String = ""
 
 @onready var left_hand: XRController3D = $XROrigin3D/LeftHand
 @onready var right_hand: XRController3D = $XROrigin3D/RightHand
@@ -33,6 +40,17 @@ var _last_trigger_press_msec: int = 0
 @onready var right_hand_pointer_raycast: RayCast3D = $XROrigin3D/RightHandPointer/RayCast3D
 @onready var scene_pointer_mesh: MeshInstance3D = $XROrigin3D/RightHandPointer/ScenePointerMesh
 @onready var scene_colliding_mesh: MeshInstance3D = $XROrigin3D/RightHandPointer/SceneCollidingMesh
+@onready var function_pointer = $XROrigin3D/RightHandPointer/FunctionPointer
+@onready var right_reticle_ring: MeshInstance3D = get_node_or_null("XROrigin3D/RightHandPointer/SceneCollidingMesh/ReticleRing")
+
+@onready var left_hand_pointer: XRController3D = $XROrigin3D/LeftHandPointer
+@onready var left_hand_pointer_raycast: RayCast3D = $XROrigin3D/LeftHandPointer/RayCast3D
+@onready var left_scene_pointer_mesh: MeshInstance3D = $XROrigin3D/LeftHandPointer/ScenePointerMesh
+@onready var left_scene_colliding_mesh: MeshInstance3D = $XROrigin3D/LeftHandPointer/SceneCollidingMesh
+@onready var left_function_pointer = $XROrigin3D/LeftHandPointer/FunctionPointer
+@onready var left_reticle_ring: MeshInstance3D = get_node_or_null("XROrigin3D/LeftHandPointer/SceneCollidingMesh/ReticleRing")
+
+@onready var wrist_menu: WristMenu = %WristMenu
 @onready var world_environment: WorldEnvironment = $WorldEnvironment
 @onready var scene_manager: OpenXRFbSceneManager = $XROrigin3D/OpenXRFbSceneManager
 @onready var spatial_anchor_manager: OpenXRFbSpatialAnchorManager = $XROrigin3D/OpenXRFbSpatialAnchorManager
@@ -41,7 +59,6 @@ var _last_trigger_press_msec: int = 0
 @onready var depth_testing_mesh: MeshInstance3D = $XROrigin3D/RightHand/DepthTestingMesh
 @onready var scene_menu_viewport = %SceneMenuViewport
 @onready var mini_cad_viewer: MiniCADViewer = %MiniCADViewer
-@onready var function_pointer = $XROrigin3D/RightHandPointer/FunctionPointer
 
 const COLORS = [
 	"#FF0000",  # Red
@@ -53,6 +70,63 @@ const COLORS = [
 	"#FF8000",  # Orange
 	"#800080",  # Purple
 ]
+
+
+func get_active_pointer() -> XRController3D:
+	return right_hand_pointer if dominant_hand == "right" else left_hand_pointer
+
+
+func get_active_raycast() -> RayCast3D:
+	return right_hand_pointer_raycast if dominant_hand == "right" else left_hand_pointer_raycast
+
+
+func get_active_pointer_mesh() -> MeshInstance3D:
+	return scene_pointer_mesh if dominant_hand == "right" else left_scene_pointer_mesh
+
+
+func get_active_colliding_mesh() -> MeshInstance3D:
+	return scene_colliding_mesh if dominant_hand == "right" else left_scene_colliding_mesh
+
+
+func get_active_function_pointer() -> Node:
+	return function_pointer if dominant_hand == "right" else left_function_pointer
+
+
+func get_active_reticle_ring() -> MeshInstance3D:
+	return right_reticle_ring if dominant_hand == "right" else left_reticle_ring
+
+
+func set_dominant_hand(hand: String) -> void:
+	dominant_hand = hand
+	var is_right = (dominant_hand == "right")
+
+	if right_hand_pointer:
+		right_hand_pointer.visible = is_right and scene_and_spatial_anchors_displayed
+	if right_hand_pointer_raycast:
+		right_hand_pointer_raycast.enabled = is_right and scene_and_spatial_anchors_displayed
+	if left_hand_pointer:
+		left_hand_pointer.visible = (not is_right) and scene_and_spatial_anchors_displayed
+	if left_hand_pointer_raycast:
+		left_hand_pointer_raycast.enabled = (not is_right) and scene_and_spatial_anchors_displayed
+
+	if selected_spatial_anchor_node:
+		selected_spatial_anchor_node.set_selected(false)
+		selected_spatial_anchor_node = null
+	if right_reticle_ring:
+		right_reticle_ring.visible = false
+	if left_reticle_ring:
+		left_reticle_ring.visible = false
+
+	if wrist_menu:
+		var target_parent = left_hand if is_right else right_hand
+		if target_parent and wrist_menu.get_parent() != target_parent:
+			wrist_menu.get_parent().remove_child(wrist_menu)
+			target_parent.add_child(wrist_menu)
+		if is_right:
+			wrist_menu.transform = Transform3D(Basis(Vector3(1, 0, 0), Vector3(0, 0.866025, 0.5), Vector3(0, -0.5, 0.866025)), Vector3(0.05, 0.04, 0.06))
+		else:
+			wrist_menu.transform = Transform3D(Basis(Vector3(1, 0, 0), Vector3(0, 0.866025, 0.5), Vector3(0, -0.5, 0.866025)), Vector3(-0.05, 0.04, 0.06))
+		wrist_menu.set_dominant_hand(dominant_hand)
 
 
 func _ready() -> void:
@@ -68,15 +142,45 @@ func _ready() -> void:
 		scene_manager.child_entered_tree.connect(_on_scene_anchor_child_entered)
 
 	if right_hand_pointer:
-		if not right_hand_pointer.button_released.is_connected(_on_right_hand_button_released):
-			right_hand_pointer.button_released.connect(_on_right_hand_button_released)
-		if not right_hand_pointer.button_pressed.is_connected(_on_right_hand_button_pressed):
-			right_hand_pointer.button_pressed.connect(_on_right_hand_button_pressed)
+		if not right_hand_pointer.button_released.is_connected(_on_pointer_button_released.bind(right_hand_pointer)):
+			right_hand_pointer.button_released.connect(_on_pointer_button_released.bind(right_hand_pointer))
+		if not right_hand_pointer.button_pressed.is_connected(_on_pointer_button_pressed.bind(right_hand_pointer)):
+			right_hand_pointer.button_pressed.connect(_on_pointer_button_pressed.bind(right_hand_pointer))
+
+	if left_hand_pointer:
+		if not left_hand_pointer.button_released.is_connected(_on_pointer_button_released.bind(left_hand_pointer)):
+			left_hand_pointer.button_released.connect(_on_pointer_button_released.bind(left_hand_pointer))
+		if not left_hand_pointer.button_pressed.is_connected(_on_pointer_button_pressed.bind(left_hand_pointer)):
+			left_hand_pointer.button_pressed.connect(_on_pointer_button_pressed.bind(left_hand_pointer))
+
+	if right_hand and not right_hand.button_pressed.is_connected(_on_right_hand_controller_button_pressed):
+		right_hand.button_pressed.connect(_on_right_hand_controller_button_pressed)
+
+	if wrist_menu:
+		wrist_menu.xr_camera = xr_camera
+		if not wrist_menu.passthrough_toggled.is_connected(_on_wrist_passthrough_toggled):
+			wrist_menu.passthrough_toggled.connect(_on_wrist_passthrough_toggled)
+		if not wrist_menu.cad_toggled.is_connected(_on_wrist_cad_toggled):
+			wrist_menu.cad_toggled.connect(_on_wrist_cad_toggled)
+		if not wrist_menu.tape_toggled.is_connected(_on_wrist_tape_toggled):
+			wrist_menu.tape_toggled.connect(_on_wrist_tape_toggled)
+		if not wrist_menu.undo_measurement.is_connected(undo_last_measurement):
+			wrist_menu.undo_measurement.connect(undo_last_measurement)
+		if not wrist_menu.menu_toggled.is_connected(toggle_scene_menu):
+			wrist_menu.menu_toggled.connect(toggle_scene_menu)
+		if not wrist_menu.cycle_color.is_connected(cycle_anchor_color):
+			wrist_menu.cycle_color.connect(cycle_anchor_color)
+		if not wrist_menu.toggle_hand.is_connected(_on_wrist_toggle_hand):
+			wrist_menu.toggle_hand.connect(_on_wrist_toggle_hand)
 
 	if depth_testing_mesh:
 		depth_testing_mesh.set_surface_override_material(0, ENVIRONMENT_DEPTH_MATERIAL if global_environment_depth_enabled else BLUE_MATERIAL)
 
 	_setup_scene_menu()
+	set_dominant_hand(dominant_hand)
+	if wrist_menu:
+		wrist_menu.set_active_color(active_anchor_color)
+		_update_measurement_metrics()
 
 
 func _setup_scene_menu() -> void:
@@ -151,6 +255,7 @@ func _on_ui_unit_preference_changed(use_imperial: bool) -> void:
 			line.update_points(line.point_a, line.point_b, use_imperial_units)
 	if tape_measure_preview_line and tape_measure_preview_line.visible:
 		tape_measure_preview_line.use_imperial = use_imperial_units
+	_update_measurement_metrics()
 
 
 func clear_tape_measurements() -> void:
@@ -158,10 +263,77 @@ func clear_tape_measurements() -> void:
 		if is_instance_valid(line):
 			line.queue_free()
 	placed_measurements.clear()
+	hovered_measurement_line = null
 	tape_measure_has_point_a = false
 	if tape_measure_preview_line:
 		tape_measure_preview_line.visible = false
 	_update_tape_ui_state()
+	_update_measurement_metrics()
+
+
+func get_cumulative_measurement_distance() -> float:
+	var total := 0.0
+	for line in placed_measurements:
+		if is_instance_valid(line) and "distance" in line:
+			total += line.distance
+	return total
+
+
+func _update_measurement_metrics() -> void:
+	var total_dist = get_cumulative_measurement_distance()
+	var count = placed_measurements.size()
+	if wrist_menu:
+		wrist_menu.set_metrics_info(total_dist, use_imperial_units, count)
+
+
+func undo_last_measurement() -> void:
+	if placed_measurements.is_empty():
+		return
+	var last_line = placed_measurements.pop_back()
+	if hovered_measurement_line == last_line:
+		hovered_measurement_line = null
+	if is_instance_valid(last_line):
+		last_line.queue_free()
+	_update_measurement_metrics()
+	var active_ptr = get_active_pointer()
+	if active_ptr:
+		trigger_haptic(active_ptr, 100.0, 0.4, 0.05)
+
+
+func delete_measurement(line_node: Node3D) -> void:
+	if line_node in placed_measurements:
+		placed_measurements.erase(line_node)
+	if hovered_measurement_line == line_node:
+		hovered_measurement_line = null
+	if is_instance_valid(line_node):
+		line_node.queue_free()
+	_update_measurement_metrics()
+
+
+func cycle_anchor_color() -> void:
+	active_anchor_color_index = (active_anchor_color_index + 1) % COLORS.size()
+	active_anchor_color = Color(COLORS[active_anchor_color_index])
+	if wrist_menu:
+		wrist_menu.set_active_color(active_anchor_color)
+	var active_ptr = get_active_pointer()
+	if active_ptr:
+		trigger_haptic(active_ptr, 120.0, 0.35, 0.04)
+
+
+func _on_wrist_passthrough_toggled() -> void:
+	enable_passthrough(not passthrough_enabled)
+
+
+func _on_wrist_cad_toggled() -> void:
+	toggle_cad_viewer()
+
+
+func _on_wrist_tape_toggled() -> void:
+	_on_ui_toggle_tape_measure(not tape_measure_active)
+
+
+func _on_wrist_toggle_hand() -> void:
+	set_dominant_hand("left" if dominant_hand == "right" else "right")
 
 
 func trigger_haptic(controller: XRController3D, frequency: float = 100.0, amplitude: float = 0.5, duration: float = 0.05) -> void:
@@ -170,11 +342,13 @@ func trigger_haptic(controller: XRController3D, frequency: float = 100.0, amplit
 
 
 func _update_tape_ui_state() -> void:
-	if not scene_menu_viewport:
-		return
-	var ui = scene_menu_viewport.get_scene_root()
-	if ui and ui.has_method("set_tape_measure_state"):
-		ui.set_tape_measure_state(tape_measure_active, tape_measure_has_point_a)
+	if scene_menu_viewport:
+		var ui = scene_menu_viewport.get_scene_root()
+		if ui and ui.has_method("set_tape_measure_state"):
+			ui.set_tape_measure_state(tape_measure_active, tape_measure_has_point_a)
+	if wrist_menu:
+		wrist_menu.set_tape_active(tape_measure_active)
+	_update_measurement_metrics()
 
 
 func _on_openxr_session_begun() -> void:
@@ -408,8 +582,10 @@ func save_current_layout(scene_name: String) -> void:
 		if entity:
 			var custom_data = entity.custom_data
 			var color_str = "#00FFFF"
+			var label_str = ""
 			if custom_data is Dictionary:
 				color_str = custom_data.get("color", "#00FFFF")
+				label_str = custom_data.get("label", "")
 
 			var pos_arr := [0.0, 0.0, 0.0]
 			var rot_arr := [0.0, 0.0, 0.0]
@@ -421,6 +597,7 @@ func save_current_layout(scene_name: String) -> void:
 
 			anchor_data[uuid] = {
 				"color": color_str,
+				"label": label_str,
 				"pos": pos_arr,
 				"rot": rot_arr
 			}
@@ -482,19 +659,26 @@ func clear_all_anchors(persist_to_active: bool = false) -> void:
 
 
 func _update_scene_ui() -> void:
-	if not scene_menu_viewport:
-		return
-	var ui = scene_menu_viewport.get_scene_root()
-	if ui:
-		if ui.has_method("set_scenes_data"):
-			var count: int = 0
-			if spatial_anchor_manager:
-				count = spatial_anchor_manager.get_anchor_uuids().size()
-			ui.set_scenes_data(saved_scenes, active_scene_name, count)
-		if ui.has_method("set_room_dimensions"):
-			ui.set_room_dimensions(calculate_room_dimensions())
-		if ui.has_method("set_tape_measure_state"):
-			ui.set_tape_measure_state(tape_measure_active, tape_measure_has_point_a)
+	var count: int = 0
+	if spatial_anchor_manager:
+		count = spatial_anchor_manager.get_anchor_uuids().size()
+
+	if scene_menu_viewport:
+		var ui = scene_menu_viewport.get_scene_root()
+		if ui:
+			if ui.has_method("set_scenes_data"):
+				ui.set_scenes_data(saved_scenes, active_scene_name, count)
+			if ui.has_method("set_room_dimensions"):
+				ui.set_room_dimensions(calculate_room_dimensions())
+			if ui.has_method("set_tape_measure_state"):
+				ui.set_tape_measure_state(tape_measure_active, tape_measure_has_point_a)
+
+	if wrist_menu:
+		wrist_menu.set_layout_info(active_scene_name, count)
+		wrist_menu.set_tape_active(tape_measure_active)
+		wrist_menu.set_active_color(active_anchor_color)
+		wrist_menu.set_dominant_hand(dominant_hand)
+		wrist_menu.set_metrics_info(get_cumulative_measurement_distance(), use_imperial_units, placed_measurements.size())
 
 	if mini_cad_viewer and mini_cad_viewer.visible:
 		mini_cad_viewer.set_saved_scenes_data(saved_scenes, active_scene_name)
@@ -612,71 +796,292 @@ func display_scene_and_spatial_anchors(value: bool) -> void:
 
 	scene_manager.visible = value
 	spatial_anchor_manager.visible = value
-	right_hand_pointer.visible = value
-	right_hand_pointer_raycast.enabled = value
-
 	scene_and_spatial_anchors_displayed = value
+
+	var active_ptr = get_active_pointer()
+	var active_rc = get_active_raycast()
+	if active_ptr:
+		active_ptr.visible = value
+	if active_rc:
+		active_rc.enabled = value
 
 
 func _physics_process(_delta: float) -> void:
-	if right_hand_pointer.visible:
-		var previous_selected_spatial_anchor_node = selected_spatial_anchor_node
+	var active_pointer = get_active_pointer()
+	var active_raycast = get_active_raycast()
+	var active_colliding_mesh = get_active_colliding_mesh()
+	var active_pointer_mesh = get_active_pointer_mesh()
+	var active_reticle_ring = get_active_reticle_ring()
 
-		# Check if pointing at floating UI menu or CAD viewer controls
-		var pointing_at_menu := false
-		if scene_menu_viewport and scene_menu_viewport.visible:
-			var hit = scene_menu_viewport.intersects_ray(right_hand_pointer.global_position, -right_hand_pointer.global_transform.basis.z)
-			if hit != Vector2(-1.0, -1.0):
-				pointing_at_menu = true
+	if not active_pointer or not active_pointer.visible:
+		if active_reticle_ring:
+			active_reticle_ring.visible = false
+		return
 
-		if not pointing_at_menu and mini_cad_viewer and mini_cad_viewer.visible and mini_cad_viewer.controls_panel:
-			var hit = mini_cad_viewer.controls_panel.intersects_ray(right_hand_pointer.global_position, -right_hand_pointer.global_transform.basis.z)
-			if hit != Vector2(-1.0, -1.0):
-				pointing_at_menu = true
+	var previous_selected_spatial_anchor_node = selected_spatial_anchor_node
+	var previous_hovered_line = hovered_measurement_line
+	hovered_measurement_line = null
 
-		if pointing_at_menu:
-			# When aiming at menu, clear world anchor highlights and hide world colliding dot
-			selected_spatial_anchor_node = null
-			scene_colliding_mesh.visible = false
-			if previous_selected_spatial_anchor_node:
-				previous_selected_spatial_anchor_node.set_selected(false)
-			return
+	# Check if pointing at floating UI menu, CAD controls, or wrist menu
+	var pointing_at_menu := false
+	if scene_menu_viewport and scene_menu_viewport.visible:
+		var hit = scene_menu_viewport.intersects_ray(active_pointer.global_position, -active_pointer.global_transform.basis.z)
+		if hit != Vector2(-1.0, -1.0):
+			pointing_at_menu = true
 
-		# Update live tape measure preview if Point A is placed
-		if tape_measure_active and tape_measure_has_point_a and tape_measure_preview_line:
-			var current_aim_point := Vector3.ZERO
-			if right_hand_pointer_raycast.is_colliding():
-				current_aim_point = right_hand_pointer_raycast.get_collision_point()
-			else:
-				current_aim_point = right_hand_pointer.global_position - right_hand_pointer.global_transform.basis.z * 3.0
-			tape_measure_preview_line.update_points(tape_measure_point_a, current_aim_point, use_imperial_units)
+	if not pointing_at_menu and mini_cad_viewer and mini_cad_viewer.visible and mini_cad_viewer.controls_panel:
+		var hit = mini_cad_viewer.controls_panel.intersects_ray(active_pointer.global_position, -active_pointer.global_transform.basis.z)
+		if hit != Vector2(-1.0, -1.0):
+			pointing_at_menu = true
 
-		if right_hand_pointer_raycast.is_colliding():
-			var collision_point: Vector3 = right_hand_pointer_raycast.get_collision_point()
-			scene_colliding_mesh.global_position = collision_point
+	if not pointing_at_menu and wrist_menu and wrist_menu.visible and wrist_menu.viewport_panel:
+		var hit = wrist_menu.viewport_panel.intersects_ray(active_pointer.global_position, -active_pointer.global_transform.basis.z)
+		if hit != Vector2(-1.0, -1.0):
+			pointing_at_menu = true
 
-			var pointer_length: float = (collision_point - right_hand_pointer.global_position).length()
-			scene_pointer_mesh.mesh.size.z = pointer_length
-			scene_pointer_mesh.position.z = -pointer_length / 2.0
+	if pointing_at_menu:
+		# Clear world anchor and line highlights and hide reticles
+		selected_spatial_anchor_node = null
+		if active_colliding_mesh:
+			active_colliding_mesh.visible = false
+		if active_reticle_ring:
+			active_reticle_ring.visible = false
+		if previous_selected_spatial_anchor_node:
+			previous_selected_spatial_anchor_node.set_selected(false)
+		if previous_hovered_line and is_instance_valid(previous_hovered_line) and previous_hovered_line.has_method("set_highlight"):
+			previous_hovered_line.set_highlight(false)
+		return
 
-			var collider: CollisionObject3D = right_hand_pointer_raycast.get_collider()
-			if collider and collider.get_collision_layer_value(3):
+	# Update live tape measure preview if Point A is placed
+	if tape_measure_active and tape_measure_has_point_a and tape_measure_preview_line:
+		var current_aim_point := Vector3.ZERO
+		if active_raycast and active_raycast.is_colliding():
+			current_aim_point = active_raycast.get_collision_point()
+		else:
+			current_aim_point = active_pointer.global_position - active_pointer.global_transform.basis.z * 3.0
+		tape_measure_preview_line.update_points(tape_measure_point_a, current_aim_point, use_imperial_units)
+
+	if active_raycast and active_raycast.is_colliding():
+		var collision_point: Vector3 = active_raycast.get_collision_point()
+		var collision_normal: Vector3 = active_raycast.get_collision_normal()
+		if active_colliding_mesh:
+			active_colliding_mesh.global_position = collision_point
+
+		if active_pointer_mesh and active_pointer_mesh.mesh:
+			var pointer_length: float = (collision_point - active_pointer.global_position).length()
+			active_pointer_mesh.mesh.size.z = pointer_length
+			active_pointer_mesh.position.z = -pointer_length / 2.0
+
+		# Surface-normal snapping reticle ring
+		if active_reticle_ring:
+			active_reticle_ring.visible = true
+			var norm = collision_normal.normalized()
+			var up = Vector3.FORWARD if absf(norm.dot(Vector3.UP)) > 0.99 else Vector3.UP
+			var x_axis = norm.cross(up).normalized()
+			var z_axis = x_axis.cross(norm).normalized()
+			active_reticle_ring.global_transform = Transform3D(Basis(x_axis, norm, z_axis), collision_point + norm * 0.003)
+
+		var collider: CollisionObject3D = active_raycast.get_collider()
+		if collider:
+			# Anchor hit detection (Layer 3)
+			if collider.get_collision_layer_value(3):
 				selected_spatial_anchor_node = collider
 			else:
 				selected_spatial_anchor_node = null
-		else:
-			scene_pointer_mesh.mesh.size.z = 5
-			scene_pointer_mesh.position.z = -2.5
-			selected_spatial_anchor_node = null
 
-		if previous_selected_spatial_anchor_node != selected_spatial_anchor_node:
-			if previous_selected_spatial_anchor_node:
-				previous_selected_spatial_anchor_node.set_selected(false)
-			if selected_spatial_anchor_node:
-				selected_spatial_anchor_node.set_selected(true)
-				scene_colliding_mesh.visible = false
+			# Measurement badge hover detection
+			if collider.name == "BadgeArea" or (collider.get_parent() and collider.get_parent().has_method("set_highlight")):
+				var line = collider.get_parent()
+				if is_instance_valid(line) and line.has_method("set_highlight"):
+					hovered_measurement_line = line
+		else:
+			selected_spatial_anchor_node = null
+	else:
+		if active_pointer_mesh and active_pointer_mesh.mesh:
+			active_pointer_mesh.mesh.size.z = 5.0
+			active_pointer_mesh.position.z = -2.5
+		selected_spatial_anchor_node = null
+		if active_reticle_ring:
+			active_reticle_ring.visible = false
+
+	if previous_selected_spatial_anchor_node != selected_spatial_anchor_node:
+		if previous_selected_spatial_anchor_node:
+			previous_selected_spatial_anchor_node.set_selected(false)
+		if selected_spatial_anchor_node:
+			selected_spatial_anchor_node.set_selected(true)
+			if active_colliding_mesh:
+				active_colliding_mesh.visible = false
+		else:
+			if active_colliding_mesh:
+				active_colliding_mesh.visible = true
+
+	if previous_hovered_line != hovered_measurement_line:
+		if is_instance_valid(previous_hovered_line) and previous_hovered_line.has_method("set_highlight"):
+			previous_hovered_line.set_highlight(false)
+		if is_instance_valid(hovered_measurement_line) and hovered_measurement_line.has_method("set_highlight"):
+			hovered_measurement_line.set_highlight(true)
+			trigger_haptic(active_pointer, 80.0, 0.2, 0.02)
+
+
+func _handle_pointer_trigger(active_pointer: XRController3D) -> void:
+	var now = Time.get_ticks_msec()
+	if now - _last_trigger_press_msec < 250:
+		return
+	_last_trigger_press_msec = now
+
+	if not active_pointer or not active_pointer.visible:
+		return
+
+	var active_raycast = get_active_raycast()
+	var active_fptr = get_active_function_pointer()
+
+	# 1. Floating UI menu click
+	if scene_menu_viewport and scene_menu_viewport.visible:
+		var hit = scene_menu_viewport.intersects_ray(active_pointer.global_position, -active_pointer.global_transform.basis.z)
+		if hit != Vector2(-1.0, -1.0):
+			if active_fptr and active_fptr.has_method("_do_select"):
+				active_fptr._do_select(true)
+			trigger_haptic(active_pointer, 150.0, 0.25, 0.03)
+			return
+
+	# 2. Wrist HUD click
+	if wrist_menu and wrist_menu.visible and wrist_menu.viewport_panel:
+		var hit = wrist_menu.viewport_panel.intersects_ray(active_pointer.global_position, -active_pointer.global_transform.basis.z)
+		if hit != Vector2(-1.0, -1.0):
+			if active_fptr and active_fptr.has_method("_do_select"):
+				active_fptr._do_select(true)
+			trigger_haptic(active_pointer, 150.0, 0.25, 0.03)
+			return
+
+	# 3. CAD viewer controls bar click
+	if mini_cad_viewer and mini_cad_viewer.visible and mini_cad_viewer.controls_panel:
+		var hit = mini_cad_viewer.controls_panel.intersects_ray(active_pointer.global_position, -active_pointer.global_transform.basis.z)
+		if hit != Vector2(-1.0, -1.0):
+			if active_fptr and active_fptr.has_method("_do_select"):
+				active_fptr._do_select(true)
+			trigger_haptic(active_pointer, 150.0, 0.25, 0.03)
+			return
+
+	# 4. Mini CAD Viewer grab handle
+	if active_raycast and active_raycast.is_colliding():
+		var collider = active_raycast.get_collider()
+		if mini_cad_viewer and mini_cad_viewer.visible and mini_cad_viewer.grab_handle_area and collider == mini_cad_viewer.grab_handle_area:
+			mini_cad_viewer.start_grab(active_pointer)
+			trigger_haptic(active_pointer, 100.0, 0.5, 0.06)
+			return
+
+	# 5. Measurement badge individual deletion
+	if hovered_measurement_line and is_instance_valid(hovered_measurement_line):
+		var line_to_delete = hovered_measurement_line
+		hovered_measurement_line = null
+		delete_measurement(line_to_delete)
+		trigger_haptic(active_pointer, 140.0, 0.6, 0.08)
+		return
+
+	# 6. Tape measure placement
+	if tape_measure_active:
+		var hit_point := Vector3.ZERO
+		if active_raycast and active_raycast.is_colliding():
+			hit_point = active_raycast.get_collision_point()
+		else:
+			hit_point = active_pointer.global_position - active_pointer.global_transform.basis.z * 3.0
+
+		if not tape_measure_has_point_a:
+			tape_measure_point_a = hit_point
+			tape_measure_has_point_a = true
+			if not tape_measure_preview_line:
+				tape_measure_preview_line = MEASUREMENT_LINE_SCENE.instantiate()
+				add_child(tape_measure_preview_line)
+			tape_measure_preview_line.visible = true
+			tape_measure_preview_line.update_points(tape_measure_point_a, hit_point, use_imperial_units)
+			_update_tape_ui_state()
+			trigger_haptic(active_pointer, 120.0, 0.45, 0.05)
+		else:
+			var final_line = MEASUREMENT_LINE_SCENE.instantiate()
+			add_child(final_line)
+			final_line.update_points(tape_measure_point_a, hit_point, use_imperial_units)
+			if final_line.has_signal("delete_requested"):
+				final_line.delete_requested.connect(delete_measurement)
+			placed_measurements.append(final_line)
+
+			tape_measure_has_point_a = false
+			if tape_measure_preview_line:
+				tape_measure_preview_line.visible = false
+			_update_tape_ui_state()
+			_update_measurement_metrics()
+			trigger_haptic(active_pointer, 160.0, 0.7, 0.08)
+		return
+
+	# 7. Spatial Anchor deletion or creation
+	if active_raycast and active_raycast.is_colliding():
+		if selected_spatial_anchor_node:
+			var anchor_parent = selected_spatial_anchor_node.get_parent()
+			if anchor_parent is XRAnchor3D:
+				spatial_anchor_manager.untrack_anchor(anchor_parent.tracker)
+				trigger_haptic(active_pointer, 100.0, 0.5, 0.06)
+		else:
+			var anchor_transform := Transform3D()
+			anchor_transform.origin = active_raycast.get_collision_point()
+
+			var collision_normal: Vector3 = active_raycast.get_collision_normal()
+			if collision_normal.is_equal_approx(Vector3.UP):
+				anchor_transform.basis = anchor_transform.basis.rotated(Vector3(1.0, 0.0, 0.0), PI / 2.0)
+			elif collision_normal.is_equal_approx(Vector3.DOWN):
+				anchor_transform.basis = anchor_transform.basis.rotated(Vector3(1.0, 0.0, 0.0), -PI / 2.0)
 			else:
-				scene_colliding_mesh.visible = true
+				anchor_transform.basis = Basis.looking_at(collision_normal)
+
+			var custom_data = {
+				"color": active_anchor_color.to_html(false),
+				"label": active_anchor_label
+			}
+			spatial_anchor_manager.create_anchor(anchor_transform, custom_data)
+			trigger_haptic(active_pointer, 120.0, 0.6, 0.07)
+
+
+func _handle_pointer_release(active_pointer: XRController3D) -> void:
+	if mini_cad_viewer and mini_cad_viewer.is_grabbed:
+		mini_cad_viewer.end_grab()
+		trigger_haptic(active_pointer, 80.0, 0.3, 0.04)
+	var active_fptr = get_active_function_pointer()
+	if active_fptr and active_fptr.has_method("_do_select"):
+		active_fptr._do_select(false)
+
+
+func _on_pointer_button_pressed(name: String, pointer: XRController3D) -> void:
+	if pointer != get_active_pointer():
+		return
+
+	if name == "trigger_click" or name == "trigger":
+		_handle_pointer_trigger(pointer)
+	elif name == "ax_button":
+		var target_hand = right_hand if dominant_hand == "right" else left_hand
+		var anchor_transform := target_hand.transform
+		var custom_data = {
+			"color": active_anchor_color.to_html(false),
+			"label": active_anchor_label
+		}
+		spatial_anchor_manager.create_anchor(anchor_transform, custom_data)
+		trigger_haptic(target_hand, 140.0, 0.6, 0.07)
+	elif name == "by_button":
+		if dominant_hand == "right":
+			global_environment_depth_enabled = not global_environment_depth_enabled
+			environment_depth_node.visible = global_environment_depth_enabled
+			depth_testing_mesh.set_surface_override_material(0, ENVIRONMENT_DEPTH_MATERIAL if global_environment_depth_enabled else BLUE_MATERIAL)
+			trigger_haptic(right_hand, 110.0, 0.35, 0.04)
+		else:
+			enable_passthrough(not passthrough_enabled)
+			trigger_haptic(left_hand, 110.0, 0.35, 0.04)
+	elif name == "menu_button":
+		toggle_scene_menu()
+
+
+func _on_pointer_button_released(name: String, pointer: XRController3D) -> void:
+	if pointer != get_active_pointer():
+		return
+
+	if name == "trigger_click" or name == "trigger":
+		_handle_pointer_release(pointer)
 
 
 func _on_left_hand_button_pressed(name: String) -> void:
@@ -689,113 +1094,31 @@ func _on_left_hand_button_pressed(name: String) -> void:
 		toggle_scene_menu()
 
 
+func _on_right_hand_controller_button_pressed(name: String) -> void:
+	if dominant_hand == "left":
+		trigger_haptic(right_hand, 120.0, 0.3, 0.04)
+		if name == "ax_button":
+			var anchor_transform := right_hand.transform
+			var custom_data = {
+				"color": active_anchor_color.to_html(false),
+				"label": active_anchor_label
+			}
+			spatial_anchor_manager.create_anchor(anchor_transform, custom_data)
+			trigger_haptic(right_hand, 140.0, 0.6, 0.07)
+		elif name == "by_button":
+			global_environment_depth_enabled = not global_environment_depth_enabled
+			environment_depth_node.visible = global_environment_depth_enabled
+			depth_testing_mesh.set_surface_override_material(0, ENVIRONMENT_DEPTH_MATERIAL if global_environment_depth_enabled else BLUE_MATERIAL)
+			trigger_haptic(right_hand, 110.0, 0.35, 0.04)
+
+
+# Backward compatibility wrappers
 func _on_right_hand_button_pressed(name: String) -> void:
-	if name == "trigger_click" or name == "trigger":
-		var now = Time.get_ticks_msec()
-		if now - _last_trigger_press_msec < 250:
-			return
-		_last_trigger_press_msec = now
-
-		if not right_hand_pointer or not right_hand_pointer.visible:
-			return
-
-		# If user is pointing at the in-world floating UI menu, forward click to UI and avoid world anchors
-		if scene_menu_viewport and scene_menu_viewport.visible:
-			var hit = scene_menu_viewport.intersects_ray(right_hand_pointer.global_position, -right_hand_pointer.global_transform.basis.z)
-			if hit != Vector2(-1.0, -1.0):
-				if function_pointer and function_pointer.has_method("_do_select"):
-					function_pointer._do_select(true)
-				trigger_haptic(right_hand_pointer, 150.0, 0.25, 0.03)
-				return
-
-		# If user is pointing at CAD viewer controls bar
-		if mini_cad_viewer and mini_cad_viewer.visible and mini_cad_viewer.controls_panel:
-			var hit = mini_cad_viewer.controls_panel.intersects_ray(right_hand_pointer.global_position, -right_hand_pointer.global_transform.basis.z)
-			if hit != Vector2(-1.0, -1.0):
-				if function_pointer and function_pointer.has_method("_do_select"):
-					function_pointer._do_select(true)
-				trigger_haptic(right_hand_pointer, 150.0, 0.25, 0.03)
-				return
-
-		# If user clicks the grab handle of the Mini CAD Viewer
-		if right_hand_pointer_raycast.is_colliding():
-			var collider = right_hand_pointer_raycast.get_collider()
-			if mini_cad_viewer and mini_cad_viewer.visible and mini_cad_viewer.grab_handle_area and collider == mini_cad_viewer.grab_handle_area:
-				mini_cad_viewer.start_grab(right_hand_pointer)
-				trigger_haptic(right_hand_pointer, 100.0, 0.5, 0.06)
-				return
-
-		# If tape measure mode is active, handle Point A and Point B placement
-		if tape_measure_active:
-			var hit_point := Vector3.ZERO
-			if right_hand_pointer_raycast.is_colliding():
-				hit_point = right_hand_pointer_raycast.get_collision_point()
-			else:
-				hit_point = right_hand_pointer.global_position - right_hand_pointer.global_transform.basis.z * 3.0
-
-			if not tape_measure_has_point_a:
-				tape_measure_point_a = hit_point
-				tape_measure_has_point_a = true
-				if not tape_measure_preview_line:
-					tape_measure_preview_line = MEASUREMENT_LINE_SCENE.instantiate()
-					add_child(tape_measure_preview_line)
-				tape_measure_preview_line.visible = true
-				tape_measure_preview_line.update_points(tape_measure_point_a, hit_point, use_imperial_units)
-				_update_tape_ui_state()
-				trigger_haptic(right_hand_pointer, 120.0, 0.45, 0.05)
-			else:
-				# Complete Point B and pin measurement in world
-				var final_line = MEASUREMENT_LINE_SCENE.instantiate()
-				add_child(final_line)
-				final_line.update_points(tape_measure_point_a, hit_point, use_imperial_units)
-				placed_measurements.append(final_line)
-
-				tape_measure_has_point_a = false
-				if tape_measure_preview_line:
-					tape_measure_preview_line.visible = false
-				_update_tape_ui_state()
-				trigger_haptic(right_hand_pointer, 160.0, 0.7, 0.08)
-			return
-
-		if right_hand_pointer_raycast.is_colliding():
-			if selected_spatial_anchor_node:
-				var anchor_parent = selected_spatial_anchor_node.get_parent()
-				if anchor_parent is XRAnchor3D:
-					spatial_anchor_manager.untrack_anchor(anchor_parent.tracker)
-					trigger_haptic(right_hand_pointer, 100.0, 0.5, 0.06)
-			else:
-				var anchor_transform := Transform3D()
-				anchor_transform.origin = right_hand_pointer_raycast.get_collision_point()
-
-				var collision_normal: Vector3 = right_hand_pointer_raycast.get_collision_normal()
-				if collision_normal.is_equal_approx(Vector3.UP):
-					anchor_transform.basis = anchor_transform.basis.rotated(Vector3(1.0, 0.0, 0.0), PI / 2.0)
-				elif collision_normal.is_equal_approx(Vector3.DOWN):
-					anchor_transform.basis = anchor_transform.basis.rotated(Vector3(1.0, 0.0, 0.0), -PI / 2.0)
-				else:
-					anchor_transform.basis = Basis.looking_at(right_hand_pointer_raycast.get_collision_normal())
-
-				spatial_anchor_manager.create_anchor(anchor_transform, {color = COLORS[randi() % COLORS.size()]})
-				trigger_haptic(right_hand_pointer, 120.0, 0.6, 0.07)
-	elif name == "ax_button":
-		var anchor_transform := right_hand.transform
-		spatial_anchor_manager.create_anchor(anchor_transform, {color = COLORS[randi() % COLORS.size()]})
-		trigger_haptic(right_hand, 140.0, 0.6, 0.07)
-	elif name == "by_button":
-		global_environment_depth_enabled = not global_environment_depth_enabled
-
-		environment_depth_node.visible = global_environment_depth_enabled
-		depth_testing_mesh.set_surface_override_material(0, ENVIRONMENT_DEPTH_MATERIAL if global_environment_depth_enabled else BLUE_MATERIAL)
-		trigger_haptic(right_hand, 110.0, 0.35, 0.04)
+	_on_pointer_button_pressed(name, right_hand_pointer)
 
 
 func _on_right_hand_button_released(name: String) -> void:
-	if name == "trigger_click" or name == "trigger":
-		if mini_cad_viewer and mini_cad_viewer.is_grabbed:
-			mini_cad_viewer.end_grab()
-			trigger_haptic(right_hand_pointer, 80.0, 0.3, 0.04)
-		if function_pointer and function_pointer.has_method("_do_select"):
-			function_pointer._do_select(false)
+	_on_pointer_button_released(name, right_hand_pointer)
 
 
 func _on_scene_manager_scene_capture_completed(success: bool) -> void:
