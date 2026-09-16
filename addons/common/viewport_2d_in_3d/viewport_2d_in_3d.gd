@@ -307,3 +307,63 @@ func pointer_set_pressed(p_pointer: Node3D, p_pressed: bool) -> void:
 			_pointer_pressed = true
 			_prev_pressed_time = 0
 			_send_mouse_button_event(true)
+
+
+## Direct touch / poke interaction from fingertip or near-field interactor
+func poke_at(p_global_pos: Vector3, p_force_press: bool = false) -> bool:
+	if not visible or not enable_interactions:
+		return false
+
+	var quad_transform: Transform3D = get_global_transform()
+	var quad_normal: Vector3 = quad_transform.basis.z
+	var relative: Vector3 = p_global_pos - quad_transform.origin
+	var z_dist: float = relative.dot(quad_normal)
+
+	# Only interact if within 5cm in front and 3cm behind quad surface
+	if z_dist > 0.05 or z_dist < -0.03:
+		return false
+
+	var proj_x: float = relative.dot(quad_transform.basis.x)
+	var proj_y: float = relative.dot(quad_transform.basis.y)
+	var quad_size: Vector2 = get_size()
+
+	if absf(proj_x) > quad_size.x * 0.5 or absf(proj_y) > quad_size.y * 0.5:
+		return false
+
+	var u: float = 0.5 + (proj_x / quad_size.x)
+	var v: float = 1.0 - (0.5 + (proj_y / quad_size.y))
+	var intersection := Vector2(u, v)
+
+	var cursor_position = _intersect_to_global_pos(intersection, CURSOR_DISTANCE)
+	_cursor.visible = true
+	_cursor.global_position = cursor_position
+
+	var is_pressing = p_force_press or (z_dist <= 0.005)
+
+	if _viewport:
+		var to := _intersect_to_viewport_pos(intersection)
+		var from := _intersect_to_viewport_pos(_prev_intersection) if _prev_intersection != NO_INTERSECTION else to
+		var motion := InputEventMouseMotion.new()
+		if _pointer_pressed or is_pressing:
+			motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+		motion.relative = to - from
+		motion.position = to
+		motion.global_position = to
+		_viewport.push_input(motion)
+
+	_prev_intersection = intersection
+
+	if is_pressing != _pointer_pressed:
+		_pointer_pressed = is_pressing
+		_send_mouse_button_event(is_pressing)
+
+	return true
+
+
+func poke_leave() -> void:
+	if _pointer_pressed:
+		_pointer_pressed = false
+		if _prev_intersection != NO_INTERSECTION:
+			_send_mouse_button_event(false)
+	_cursor.visible = false
+	_prev_intersection = NO_INTERSECTION

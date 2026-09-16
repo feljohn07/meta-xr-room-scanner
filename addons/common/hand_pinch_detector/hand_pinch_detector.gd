@@ -14,8 +14,11 @@ signal pinch_held
 ## pinch_tapped] or [signal pinch_held] if they were emitted too.[br]
 signal pinch_released
 
-## The pinch action.
-@export var pinch_action: String = "pinch_value"
+## Emitted whenever the continuous pinch strength (0.0 to 1.0) updates
+signal pinch_strength_changed(strength: float)
+
+## The primary pinch action (supports "trigger", "pinch_value", "index_pinch_strength", etc.)
+@export var pinch_action: String = "trigger"
 
 ## The maximum time, in milliseconds, to detect pinch-then-release (or "pinch tap")
 @export var pinch_tap_duration := 300:
@@ -31,6 +34,9 @@ var _pinching := false
 # true when fingers have been pinched for a long time
 var _pinching_held := false
 
+# current pinch strength (0.0 to 1.0)
+var _current_strength: float = 0.0
+
 # the timestamp when [param _pinching] changed from false->true
 var _timestamp_when_pinch_detected := 0
 
@@ -39,16 +45,18 @@ var _controller: XRController3D
 
 # This Timer is started when _pinching changes from false->true, to detect if fingers have been
 # pinched for a long time.
-# Must use a Timer because pinch values are not very constant, as in, if you hold pinch for a
-# while, you'll only get one value (1.0), rather than 1.0 every frame.
 @onready var _pinching_held_timer: Timer = $Timer
 
 
+func is_pinching() -> bool:
+	return _pinching
+
+
+func get_pinch_strength() -> float:
+	return _current_strength
+
+
 func _enter_tree() -> void:
-	# NOTE: as of this writing, assume the immediate parent is the XRController3D
-	# Ideally this would be XRHelpers.get_xr_controller(self) like XRTools's
-	# function_pointer.gd (see
-	# https://github.com/GodotVR/godot-xr-tools/blob/master/addons/godot-xr-tools/functions/function_pointer.gd)
 	var parent_node = get_parent()
 	if !(parent_node is XRController3D):
 		push_error("Unable to find XRController3D; it must be the immediate parent of this node!")
@@ -56,15 +64,23 @@ func _enter_tree() -> void:
 
 	_controller = parent_node
 	_controller.input_float_changed.connect(_on_input_float_changed)
+	if not _controller.button_pressed.is_connected(_on_button_pressed):
+		_controller.button_pressed.connect(_on_button_pressed)
+	if not _controller.button_released.is_connected(_on_button_released):
+		_controller.button_released.connect(_on_button_released)
 
 
 func _exit_tree() -> void:
-	_pinching_held_timer.stop()
+	if _pinching_held_timer:
+		_pinching_held_timer.stop()
 
-	# the _controller is still valid, even if the _controller is in the process of being deleted
-	# (because child nodes are free'd before parent nodes)
 	if _controller:
-		_controller.input_float_changed.disconnect(_on_input_float_changed)
+		if _controller.input_float_changed.is_connected(_on_input_float_changed):
+			_controller.input_float_changed.disconnect(_on_input_float_changed)
+		if _controller.button_pressed.is_connected(_on_button_pressed):
+			_controller.button_pressed.disconnect(_on_button_pressed)
+		if _controller.button_released.is_connected(_on_button_released):
+			_controller.button_released.disconnect(_on_button_released)
 		_controller = null
 
 
@@ -84,32 +100,77 @@ func set_pinch_held_duration(new_pinch_held_duration: float) -> void:
 	pinch_held_duration = new_pinch_held_duration
 
 
+func _is_pinch_float_action(action_name: String) -> bool:
+	return (
+		action_name == pinch_action
+		or action_name == "trigger"
+		or action_name == "pinch_value"
+		or action_name == "index_pinch_strength"
+		or action_name == "pinch"
+	)
+
+
+func _is_pinch_button_action(action_name: String) -> bool:
+	return (
+		action_name == "trigger_click"
+		or action_name == "index_pinch"
+		or action_name == "pinch"
+		or action_name == "select_button"
+	)
+
+
 func _on_input_float_changed(action_name: String, value: float) -> void:
-	if action_name != pinch_action:
+	if not _is_pinch_float_action(action_name):
 		return
+
+	_current_strength = clampf(value, 0.0, 1.0)
+	pinch_strength_changed.emit(_current_strength)
 
 	if !_pinching:
 		# started pinching?
-		if 0.9 < value:
+		if 0.75 < value:
 			_pinching = true
 			_timestamp_when_pinch_detected = Time.get_ticks_msec()
 			_pinching_held_timer.start(pinch_held_duration)
-
 		return
 
 	# stopped pinching?
-	if value < 0.5:
-		_pinching = false
-		_pinching_held_timer.stop()
+	if value < 0.35:
+		_end_pinch()
 
-		# don't emit pinch-tap if pinch-held was already emitted
-		if _pinching_held:
-			_pinching_held = false
-		# emit pinch-tap if was released fast enough
-		elif Time.get_ticks_msec() - _timestamp_when_pinch_detected < pinch_tap_duration:
-			pinch_tapped.emit()
 
-		pinch_released.emit()
+func _on_button_pressed(action_name: String) -> void:
+	if not _is_pinch_button_action(action_name):
+		return
+	if not _pinching:
+		_current_strength = 1.0
+		pinch_strength_changed.emit(1.0)
+		_pinching = true
+		_timestamp_when_pinch_detected = Time.get_ticks_msec()
+		_pinching_held_timer.start(pinch_held_duration)
+
+
+func _on_button_released(action_name: String) -> void:
+	if not _is_pinch_button_action(action_name):
+		return
+	if _pinching:
+		_end_pinch()
+
+
+func _end_pinch() -> void:
+	_pinching = false
+	_current_strength = 0.0
+	pinch_strength_changed.emit(0.0)
+	_pinching_held_timer.stop()
+
+	# don't emit pinch-tap if pinch-held was already emitted
+	if _pinching_held:
+		_pinching_held = false
+	# emit pinch-tap if was released fast enough
+	elif Time.get_ticks_msec() - _timestamp_when_pinch_detected < pinch_tap_duration:
+		pinch_tapped.emit()
+
+	pinch_released.emit()
 
 
 func _on_timer_timeout() -> void:

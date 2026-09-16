@@ -11,6 +11,9 @@
 [ext_resource type="PackedScene" uid="uid://cqs8c3rq6cxvk" path="res://addons/common/viewport_2d_in_3d/function_pointer.tscn" id="8_fptr"]
 [ext_resource type="PackedScene" path="res://mini_cad_viewer.tscn" id="9_cad"]
 [ext_resource type="PackedScene" uid="uid://d1g4h7j0k3m5p" path="res://wrist_menu.tscn" id="10_wrist"]
+[ext_resource type="PackedScene" uid="uid://bxtjclrpxkao" path="res://addons/common/hand_pinch_detector/hand_pinch_detector.tscn" id="11_pinch"]
+[ext_resource type="PackedScene" uid="uid://c8pkj3m5q1r7u" path="res://addons/common/hand_poke_interactor/hand_poke_interactor.tscn" id="12_poke"]
+[ext_resource type="Script" path="res://hand_visuals.gd" id="13_hvis"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_0x6cv"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -82,6 +85,18 @@ text = "[Y] Toggle Passthrough
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0.05, 0.04, 0.06)
 
+[node name="LeftHandPinchDetector" parent="XROrigin3D/LeftHand" instance=ExtResource("11_pinch")]
+unique_name_in_owner = true
+
+[node name="LeftHandPokeInteractor" parent="XROrigin3D/LeftHand" instance=ExtResource("12_poke")]
+unique_name_in_owner = true
+hand = "left"
+
+[node name="LeftHandVisuals" type="Node3D" parent="XROrigin3D/LeftHand"]
+unique_name_in_owner = true
+script = ExtResource("13_hvis")
+hand = "left"
+
 [node name="RightHand" type="XRController3D" parent="XROrigin3D" unique_id=925077199]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.478861, 0.468292, -0.241097)
 tracker = &"right_hand"
@@ -102,6 +117,18 @@ text = "[Trigger] Place/Remove Anchors
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4551915e-11, 1.4551915e-11, -0.35)
 mesh = SubResource("BoxMesh_7mycd")
 surface_material_override/0 = ExtResource("3_depth_mat")
+
+[node name="RightHandPinchDetector" parent="XROrigin3D/RightHand" instance=ExtResource("11_pinch")]
+unique_name_in_owner = true
+
+[node name="RightHandPokeInteractor" parent="XROrigin3D/RightHand" instance=ExtResource("12_poke")]
+unique_name_in_owner = true
+hand = "right"
+
+[node name="RightHandVisuals" type="Node3D" parent="XROrigin3D/RightHand"]
+unique_name_in_owner = true
+script = ExtResource("13_hvis")
+hand = "right"
 
 [node name="RightHandPointer" type="XRController3D" parent="XROrigin3D" unique_id=1157989773]
 tracker = &"right_hand"

@@ -60,6 +60,15 @@ var active_anchor_label: String = ""
 @onready var scene_menu_viewport = %SceneMenuViewport
 @onready var mini_cad_viewer: MiniCADViewer = %MiniCADViewer
 
+@onready var left_pinch_detector: Node = get_node_or_null("%LeftHandPinchDetector")
+@onready var right_pinch_detector: Node = get_node_or_null("%RightHandPinchDetector")
+@onready var left_poke_interactor: HandPokeInteractor = get_node_or_null("%LeftHandPokeInteractor")
+@onready var right_poke_interactor: HandPokeInteractor = get_node_or_null("%RightHandPokeInteractor")
+@onready var left_hand_visuals: HandVisuals = get_node_or_null("%LeftHandVisuals")
+@onready var right_hand_visuals: HandVisuals = get_node_or_null("%RightHandVisuals")
+@onready var left_controller_render_model: OpenXRFbRenderModel = %LeftControllerFbRenderModel
+@onready var right_controller_render_model: OpenXRFbRenderModel = %RightControllerFbRenderModel
+
 const COLORS = [
 	"#FF0000",  # Red
 	"#00FF00",  # Green
@@ -158,6 +167,25 @@ func _ready() -> void:
 
 	if right_hand and not right_hand.button_pressed.is_connected(_on_right_hand_controller_button_pressed):
 		right_hand.button_pressed.connect(_on_right_hand_controller_button_pressed)
+
+	if left_pinch_detector:
+		if not left_pinch_detector.pinch_tapped.is_connected(_on_hand_pinch_tapped.bind("left")):
+			left_pinch_detector.pinch_tapped.connect(_on_hand_pinch_tapped.bind("left"))
+		if not left_pinch_detector.pinch_released.is_connected(_on_hand_pinch_released.bind("left")):
+			left_pinch_detector.pinch_released.connect(_on_hand_pinch_released.bind("left"))
+
+	if right_pinch_detector:
+		if not right_pinch_detector.pinch_tapped.is_connected(_on_hand_pinch_tapped.bind("right")):
+			right_pinch_detector.pinch_tapped.connect(_on_hand_pinch_tapped.bind("right"))
+		if not right_pinch_detector.pinch_released.is_connected(_on_hand_pinch_released.bind("right")):
+			right_pinch_detector.pinch_released.connect(_on_hand_pinch_released.bind("right"))
+
+	if left_hand_visuals:
+		if not left_hand_visuals.tracking_mode_changed.is_connected(_on_tracking_mode_changed):
+			left_hand_visuals.tracking_mode_changed.connect(_on_tracking_mode_changed)
+	if right_hand_visuals:
+		if not right_hand_visuals.tracking_mode_changed.is_connected(_on_tracking_mode_changed):
+			right_hand_visuals.tracking_mode_changed.connect(_on_tracking_mode_changed)
 
 	if wrist_menu:
 		wrist_menu.xr_camera = xr_camera
@@ -717,9 +745,45 @@ func anchor_menu_to_hand() -> void:
 	scene_menu_viewport.pixel_size = 0.0005
 
 	var x_offset = 0.04 if is_right else -0.04
-	var local_pos = Vector3(x_offset, 0.18, -0.12)
-	var local_rot = Vector3(deg_to_rad(-40.0), 0.0, 0.0)
+	var is_hand_tracking = false
+	if is_right and left_hand_visuals and left_hand_visuals.is_hand_tracking_active():
+		is_hand_tracking = true
+	elif not is_right and right_hand_visuals and right_hand_visuals.is_hand_tracking_active():
+		is_hand_tracking = true
+
+	var local_pos = Vector3(x_offset, 0.14, -0.08) if is_hand_tracking else Vector3(x_offset, 0.18, -0.12)
+	var local_rot = Vector3(deg_to_rad(-35.0 if is_hand_tracking else -40.0), 0.0, 0.0)
 	scene_menu_viewport.transform = Transform3D(Basis.from_euler(local_rot), local_pos)
+
+
+func _on_hand_pinch_tapped(hand_name: String) -> void:
+	if hand_name == dominant_hand:
+		var active_ptr = get_active_pointer()
+		if active_ptr:
+			_handle_pointer_trigger(active_ptr)
+	else:
+		# Off-hand pinch toggles the hand-anchored tablet menu!
+		toggle_scene_menu()
+
+
+func _on_hand_pinch_released(hand_name: String) -> void:
+	if hand_name == dominant_hand:
+		var active_ptr = get_active_pointer()
+		if active_ptr:
+			_handle_pointer_release(active_ptr)
+
+
+func _on_tracking_mode_changed(_is_hand_tracking: bool) -> void:
+	var left_is_hand = left_hand_visuals and left_hand_visuals.is_hand_tracking_active()
+	var right_is_hand = right_hand_visuals and right_hand_visuals.is_hand_tracking_active()
+
+	if left_controller_render_model:
+		left_controller_render_model.visible = not left_is_hand
+	if right_controller_render_model:
+		right_controller_render_model.visible = not right_is_hand
+
+	if scene_menu_viewport and scene_menu_viewport.visible:
+		anchor_menu_to_hand()
 
 
 func toggle_cad_viewer(enable = null) -> void:
@@ -1076,7 +1140,7 @@ func _on_pointer_button_pressed(name: String, pointer: XRController3D) -> void:
 	if pointer != get_active_pointer():
 		return
 
-	if name == "trigger_click" or name == "trigger":
+	if name == "trigger_click" or name == "trigger" or name == "index_pinch" or name == "pinch":
 		_handle_pointer_trigger(pointer)
 	elif name == "ax_button":
 		var target_hand: XRController3D = right_hand if dominant_hand == "right" else left_hand
@@ -1104,7 +1168,7 @@ func _on_pointer_button_released(name: String, pointer: XRController3D) -> void:
 	if pointer != get_active_pointer():
 		return
 
-	if name == "trigger_click" or name == "trigger":
+	if name == "trigger_click" or name == "trigger" or name == "index_pinch" or name == "pinch":
 		_handle_pointer_release(pointer)
 
 

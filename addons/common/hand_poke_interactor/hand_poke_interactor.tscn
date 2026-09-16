@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://c8pkj3m5q1r7u"]
+
+[ext_resource type="Script" path="res://addons/common/hand_poke_interactor/hand_poke_interactor.gd" id="1_poke"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_touch"]
+radius = 0.012
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tip"]
+shading_mode = 0
+albedo_color = Color(0, 0.85, 1, 0.65)
+render_priority = 12
+
+[sub_resource type="SphereMesh" id="SphereMesh_tip"]
+material = SubResource("StandardMaterial3D_tip")
+radius = 0.006
+height = 0.012
+
+[node name="HandPokeInteractor" type="Node3D"]
+script = ExtResource("1_poke")
+
+[node name="TouchArea" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 7
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="TouchArea"]
+shape = SubResource("SphereShape3D_touch")
+
+[node name="TipMesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_tip")

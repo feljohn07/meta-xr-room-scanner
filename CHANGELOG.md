@@ -4,6 +4,32 @@ All notable changes, architectural features, fixes, and documentation for the **
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-09-16
+
+### Added
+- **Phase 3: Optical Hand Tracking & Gesture Interaction**:
+  - **OpenXR Hand Tracking Extension (`project.godot`)**: Enabled `openxr/extensions/hand_tracking=true` paired with Meta Quest high-frequency optical hand tracking (`meta_xr_features/hand_tracking=1`, `meta_xr_features/hand_tracking_frequency=1`).
+  - **Pinch Gesture Detection (`hand_pinch_detector.gd`, `hand_pinch_detector.tscn`)**:
+    - Expanded multi-action detection supporting standard OpenXR triggers, Meta FB hand tracking aim (`index_pinch`, `index_pinch_strength`), and simulated pinches.
+    - Continuous pinch strength tracking and signal emission (`pinch_strength_changed(strength)`).
+    - Tapped, held, and released gesture routing for far-field distance ray interactions.
+    - Off-hand pinch tap opens/closes the Hand-Anchored Digital Tablet with one gesture.
+  - **Direct Hand Poke & Near-Field Touch (`hand_poke_interactor.gd`, `hand_poke_interactor.tscn`)**:
+    - Index fingertip tracking using OpenXR `XRHandTracker.HAND_JOINT_INDEX_FINGER_TIP` with automatic fallback to controller forward offset.
+    - Near-field direct touch API (`poke_at()` and `poke_leave()`) integrated into `viewport_2d_in_3d.gd` allowing direct finger-to-surface interaction on the Hand-Anchored Tablet (`SceneMenuViewport`), Palm/Wrist Watch HUD (`WristMenu`), and CAD workstation controls.
+    - Dynamic fingertip proximity indicator (glowing cyan aura that brightens and changes to emerald green upon UI contact).
+    - 3D `Area3D` touch collider for direct physical interaction with 3D objects.
+  - **Stylized Optical Hand Visuals (`hand_visuals.gd`)**:
+    - Dynamically detects and instantiates `OpenXRFbHandTrackingMesh` if Meta runtime hand mesh extension is present.
+    - Visual fingertip joint indicators on thumb and index fingers.
+    - Dynamic pinch indicator ring (`TorusMesh`) between thumb and index fingertips that animates and scales with pinch proximity.
+  - **Seamless Dynamic Controller / Bare Hand Switching**:
+    - Real-time detection of hand tracking state without requiring app restart.
+    - Automatically hides Quest Touch controller models (`LeftControllerFbRenderModel`, `RightControllerFbRenderModel`) and displays hand visuals when controllers are put down.
+    - Ergonomic adaptive mounting for the Hand-Anchored Tablet and Wrist Watch HUD, positioning flush to the wrist joint when bare hands are active.
+
+---
+
 ## [1.5.0] - 2026-09-16
 
 ### Added
