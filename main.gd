@@ -1055,8 +1055,8 @@ func _on_pointer_button_pressed(name: String, pointer: XRController3D) -> void:
 	if name == "trigger_click" or name == "trigger":
 		_handle_pointer_trigger(pointer)
 	elif name == "ax_button":
-		var target_hand = right_hand if dominant_hand == "right" else left_hand
-		var anchor_transform := target_hand.transform
+		var target_hand: XRController3D = right_hand if dominant_hand == "right" else left_hand
+		var anchor_transform: Transform3D = target_hand.transform
 		var custom_data = {
 			"color": active_anchor_color.to_html(false),
 			"label": active_anchor_label
@@ -1098,7 +1098,7 @@ func _on_right_hand_controller_button_pressed(name: String) -> void:
 	if dominant_hand == "left":
 		trigger_haptic(right_hand, 120.0, 0.3, 0.04)
 		if name == "ax_button":
-			var anchor_transform := right_hand.transform
+			var anchor_transform: Transform3D = right_hand.transform
 			var custom_data = {
 				"color": active_anchor_color.to_html(false),
 				"label": active_anchor_label
