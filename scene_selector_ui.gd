@@ -13,10 +13,16 @@ signal refresh_room_dimensions_requested()
 signal unit_preference_changed(use_imperial: bool)
 signal toggle_cad_view_requested()
 
+signal save_room_spec_requested(room_name: String)
+signal load_room_spec_requested(room_name: String)
+signal delete_room_spec_requested(room_name: String)
+
 @onready var tab_layouts_btn: Button = %TabLayoutsBtn
+@onready var tab_room_btn: Button = %TabRoomBtn
 @onready var tab_measure_btn: Button = %TabMeasureBtn
 @onready var tab_cad_btn: Button = %TabCadBtn
 @onready var layouts_view: VBoxContainer = %LayoutsView
+@onready var room_view: VBoxContainer = %RoomView
 @onready var measure_view: VBoxContainer = %MeasureView
 
 @onready var active_label: Label = %ActiveLabel
@@ -28,11 +34,28 @@ signal toggle_cad_view_requested()
 @onready var close_button: Button = %CloseButton
 @onready var status_label: Label = %StatusLabel
 
-# Measurement UI
+# Room Spec UI elements
+@onready var spec_floor_area_label: Label = %SpecFloorAreaLabel
+@onready var spec_wall_area_label: Label = %SpecWallAreaLabel
+@onready var spec_ceiling_height_label: Label = %SpecCeilingHeightLabel
+@onready var spec_floor_elevation_label: Label = %SpecFloorElevationLabel
+@onready var spec_width_label: Label = %SpecWidthLabel
+@onready var spec_length_label: Label = %SpecLengthLabel
+@onready var spec_perimeter_label: Label = %SpecPerimeterLabel
+@onready var spec_volume_label: Label = %SpecVolumeLabel
+@onready var spec_elements_label: Label = %SpecElementsLabel
+@onready var rescan_room_btn: Button = %RescanRoomBtn
+@onready var room_scan_name_input: LineEdit = %RoomScanNameInput
+@onready var save_room_scan_btn: Button = %SaveRoomScanBtn
+@onready var saved_rooms_container: VBoxContainer = %SavedRoomsContainer
+
+# Measurement UI elements
 @onready var height_label: Label = %HeightLabel
 @onready var width_label: Label = %WidthLabel
 @onready var length_label: Label = %LengthLabel
 @onready var area_label: Label = %AreaLabel
+@onready var wall_area_label: Label = %WallAreaLabel
+@onready var perimeter_label: Label = %PerimeterLabel
 @onready var volume_label: Label = %VolumeLabel
 @onready var surfaces_label: Label = %SurfacesLabel
 @onready var refresh_bounds_button: Button = %RefreshBoundsButton
@@ -44,6 +67,7 @@ signal toggle_cad_view_requested()
 var _current_active_scene: String = "Default"
 var _scenes_cache: Dictionary = {}
 var _room_dims_cache: Dictionary = {}
+var _current_room_spec: Dictionary = {}
 var _tape_measure_active := false
 var _use_imperial := false
 
@@ -68,9 +92,17 @@ func _ready() -> void:
 	if tab_layouts_btn:
 		tab_layouts_btn.pressed.connect(func(): _switch_tab(0))
 		_register_hover_effect(tab_layouts_btn, "View saved layouts")
+	if tab_room_btn:
+		tab_room_btn.pressed.connect(func():
+			_switch_tab(1)
+			show_status("Calculating architectural room spec from Meta Room scan...")
+			refresh_room_dimensions_requested.emit()
+			_refresh_saved_rooms_list()
+		)
+		_register_hover_effect(tab_room_btn, "View full room architectural spec and saved room profiles")
 	if tab_measure_btn:
 		tab_measure_btn.pressed.connect(func():
-			_switch_tab(1)
+			_switch_tab(2)
 			show_status("Calculating room dimensions from Meta Room scan...")
 			refresh_room_dimensions_requested.emit()
 		)
@@ -81,6 +113,17 @@ func _ready() -> void:
 			show_status("Toggled 3D CAD Blueprint Dollhouse View")
 		)
 		_register_hover_effect(tab_cad_btn, "Spawn/Toggle 3D Miniature CAD Blueprint Model")
+
+	# Room Spec Controls
+	if rescan_room_btn:
+		rescan_room_btn.pressed.connect(func():
+			show_status("Recalculating room metrics from Meta Scene scan...")
+			refresh_room_dimensions_requested.emit()
+		)
+		_register_hover_effect(rescan_room_btn, "Recalculate architectural room spec")
+	if save_room_scan_btn:
+		save_room_scan_btn.pressed.connect(_on_save_room_scan_pressed)
+		_register_hover_effect(save_room_scan_btn, "Save room scan profile to disk")
 
 	# Measurement Controls
 	if refresh_bounds_button:
@@ -97,18 +140,24 @@ func _ready() -> void:
 		_register_hover_effect(unit_toggle_button, "Switch between Meters and Feet")
 
 	_setup_preset_buttons()
+	_refresh_saved_rooms_list()
 	_switch_tab(0)
 
 
 func _switch_tab(tab_index: int) -> void:
-	if layouts_view and measure_view:
+	if layouts_view:
 		layouts_view.visible = (tab_index == 0)
-		measure_view.visible = (tab_index == 1)
+	if room_view:
+		room_view.visible = (tab_index == 1)
+	if measure_view:
+		measure_view.visible = (tab_index == 2)
 
 	if tab_layouts_btn:
 		tab_layouts_btn.modulate = Color(0.3, 0.9, 1.0) if tab_index == 0 else Color(0.7, 0.75, 0.85)
+	if tab_room_btn:
+		tab_room_btn.modulate = Color(0.3, 0.9, 1.0) if tab_index == 1 else Color(0.7, 0.75, 0.85)
 	if tab_measure_btn:
-		tab_measure_btn.modulate = Color(0.3, 0.9, 1.0) if tab_index == 1 else Color(0.7, 0.75, 0.85)
+		tab_measure_btn.modulate = Color(0.3, 0.9, 1.0) if tab_index == 2 else Color(0.7, 0.75, 0.85)
 
 
 func _register_hover_effect(btn: Button, hint_text: String = "") -> void:
@@ -166,9 +215,95 @@ func set_scenes_data(scenes_dict: Dictionary, active_scene: String, current_anch
 	_refresh_scene_list()
 
 
+func set_room_spec(spec: Dictionary) -> void:
+	_current_room_spec = spec
+	var metrics: Dictionary = spec.get("metrics", {})
+	_room_dims_cache = {
+		"height": metrics.get("height", 0.0),
+		"width": metrics.get("width", 0.0),
+		"length": metrics.get("length", 0.0),
+		"floor_area_sqm": metrics.get("floor_area_sqm", 0.0),
+		"floor_area_sqft": metrics.get("floor_area_sqft", 0.0),
+		"wall_area_sqm": metrics.get("wall_area_sqm", 0.0),
+		"wall_area_sqft": metrics.get("wall_area_sqft", 0.0),
+		"perimeter_m": metrics.get("perimeter_m", 0.0),
+		"perimeter_ft": metrics.get("perimeter_ft", 0.0),
+		"volume_cbm": metrics.get("volume_cbm", 0.0),
+		"volume_cbft": metrics.get("volume_cbft", 0.0),
+		"surfaces_count": metrics.get("wall_count", 0) + (1 if spec.get("floor", {}).size() > 0 else 0) + (1 if spec.get("ceiling", {}).size() > 0 else 0)
+	}
+	if room_scan_name_input and room_scan_name_input.text.is_empty() and spec.has("room_name"):
+		room_scan_name_input.text = spec["room_name"]
+
+	_update_room_spec_display()
+	_update_dimensions_display()
+	_refresh_saved_rooms_list()
+
+
 func set_room_dimensions(dims: Dictionary) -> void:
 	_room_dims_cache = dims
 	_update_dimensions_display()
+
+
+func _update_room_spec_display() -> void:
+	var metrics: Dictionary = _current_room_spec.get("metrics", {})
+	var h: float = metrics.get("height", 0.0)
+	var w: float = metrics.get("width", 0.0)
+	var l: float = metrics.get("length", 0.0)
+	var floor_elev: float = metrics.get("floor_elevation", 0.0)
+	var floor_area_sqm: float = metrics.get("floor_area_sqm", 0.0)
+	var floor_area_sqft: float = metrics.get("floor_area_sqft", 0.0)
+	var wall_area_sqm: float = metrics.get("wall_area_sqm", 0.0)
+	var wall_area_sqft: float = metrics.get("wall_area_sqft", 0.0)
+	var perim_m: float = metrics.get("perimeter_m", 0.0)
+	var perim_ft: float = metrics.get("perimeter_ft", 0.0)
+	var vol_cbm: float = metrics.get("volume_cbm", 0.0)
+	var vol_cbft: float = metrics.get("volume_cbft", 0.0)
+
+	var walls_count: int = metrics.get("wall_count", 0)
+	var doors_count: int = metrics.get("door_count", 0)
+	var windows_count: int = metrics.get("window_count", 0)
+	var furn_count: int = metrics.get("furniture_count", 0)
+
+	if _use_imperial:
+		if spec_floor_area_label:
+			spec_floor_area_label.text = "Floor Area: %.1f sq ft" % floor_area_sqft if floor_area_sqft > 0.0 else "Floor Area: --"
+		if spec_wall_area_label:
+			spec_wall_area_label.text = "Wall Area: %.1f sq ft" % wall_area_sqft if wall_area_sqft > 0.0 else "Wall Area: --"
+		if spec_ceiling_height_label:
+			spec_ceiling_height_label.text = "Ceiling Height: %.2f ft" % (h * 3.28084) if h > 0.0 else "Ceiling Height: --"
+		if spec_floor_elevation_label:
+			spec_floor_elevation_label.text = "Floor Elev: %.2f ft" % (floor_elev * 3.28084)
+		if spec_width_label:
+			spec_width_label.text = "Width (Span X): %.2f ft" % (w * 3.28084) if w > 0.0 else "Width (Span X): --"
+		if spec_length_label:
+			spec_length_label.text = "Length (Span Z): %.2f ft" % (l * 3.28084) if l > 0.0 else "Length (Span Z): --"
+		if spec_perimeter_label:
+			spec_perimeter_label.text = "Perimeter: %.1f ft" % perim_ft if perim_ft > 0.0 else "Perimeter: --"
+		if spec_volume_label:
+			spec_volume_label.text = "Volume: %.1f cu ft" % vol_cbft if vol_cbft > 0.0 else "Volume: --"
+	else:
+		if spec_floor_area_label:
+			spec_floor_area_label.text = "Floor Area: %.2f m²" % floor_area_sqm if floor_area_sqm > 0.0 else "Floor Area: --"
+		if spec_wall_area_label:
+			spec_wall_area_label.text = "Wall Area: %.2f m²" % wall_area_sqm if wall_area_sqm > 0.0 else "Wall Area: --"
+		if spec_ceiling_height_label:
+			spec_ceiling_height_label.text = "Ceiling Height: %.2f m" % h if h > 0.0 else "Ceiling Height: --"
+		if spec_floor_elevation_label:
+			spec_floor_elevation_label.text = "Floor Elev: %.2f m" % floor_elev
+		if spec_width_label:
+			spec_width_label.text = "Width (Span X): %.2f m" % w if w > 0.0 else "Width (Span X): --"
+		if spec_length_label:
+			spec_length_label.text = "Length (Span Z): %.2f m" % l if l > 0.0 else "Length (Span Z): --"
+		if spec_perimeter_label:
+			spec_perimeter_label.text = "Perimeter: %.2f m" % perim_m if perim_m > 0.0 else "Perimeter: --"
+		if spec_volume_label:
+			spec_volume_label.text = "Volume: %.2f m³" % vol_cbm if vol_cbm > 0.0 else "Volume: --"
+
+	if spec_elements_label:
+		spec_elements_label.text = "Architectural Elements: 🧱 %d Walls | 🚪 %d Doors | 🪟 %d Windows | 🛋️ %d Objects" % [
+			walls_count, doors_count, windows_count, furn_count
+		]
 
 
 func _update_dimensions_display() -> void:
@@ -177,15 +312,19 @@ func _update_dimensions_display() -> void:
 	var l = _room_dims_cache.get("length", 0.0)
 	var surfaces_count = _room_dims_cache.get("surfaces_count", 0)
 
-	var area = w * l
-	var vol = area * h
+	var area = _room_dims_cache.get("floor_area_sqm", w * l)
+	var vol = _room_dims_cache.get("volume_cbm", area * h)
+	var wall_area = _room_dims_cache.get("wall_area_sqm", (w + l) * 2.0 * h if h > 0 else 0.0)
+	var perim = _room_dims_cache.get("perimeter_m", (w + l) * 2.0)
 
 	if _use_imperial:
 		var ft_h = h * 3.28084
 		var ft_w = w * 3.28084
 		var ft_l = l * 3.28084
-		var sq_ft = area * 10.7639
-		var cu_ft = vol * 35.3147
+		var sq_ft = _room_dims_cache.get("floor_area_sqft", area * 10.7639)
+		var wall_sq_ft = _room_dims_cache.get("wall_area_sqft", wall_area * 10.7639)
+		var perim_ft = _room_dims_cache.get("perimeter_ft", perim * 3.28084)
+		var cu_ft = _room_dims_cache.get("volume_cbft", vol * 35.3147)
 
 		if height_label:
 			height_label.text = "Height: %.2f ft" % ft_h if h > 0.0 else "Height: Not Detected"
@@ -193,8 +332,12 @@ func _update_dimensions_display() -> void:
 			width_label.text = "Width: %.2f ft" % ft_w if w > 0.0 else "Width: Not Detected"
 		if length_label:
 			length_label.text = "Length: %.2f ft" % ft_l if l > 0.0 else "Length: Not Detected"
+		if perimeter_label:
+			perimeter_label.text = "Perimeter: %.1f ft" % perim_ft if perim > 0.0 else "Perimeter: --"
 		if area_label:
 			area_label.text = "Floor Area: %.1f sq ft" % sq_ft if area > 0.0 else "Floor Area: --"
+		if wall_area_label:
+			wall_area_label.text = "Wall Area: %.1f sq ft" % wall_sq_ft if wall_area > 0.0 else "Wall Area: --"
 		if volume_label:
 			volume_label.text = "Volume: %.1f cu ft" % cu_ft if vol > 0.0 else "Volume: --"
 	else:
@@ -204,10 +347,14 @@ func _update_dimensions_display() -> void:
 			width_label.text = "Width: %.2f m" % w if w > 0.0 else "Width: Not Detected"
 		if length_label:
 			length_label.text = "Length: %.2f m" % l if l > 0.0 else "Length: Not Detected"
+		if perimeter_label:
+			perimeter_label.text = "Perimeter: %.2f m" % perim if perim > 0.0 else "Perimeter: --"
 		if area_label:
-			area_label.text = "Floor Area: %.1f m²" % area if area > 0.0 else "Floor Area: --"
+			area_label.text = "Floor Area: %.2f m²" % area if area > 0.0 else "Floor Area: --"
+		if wall_area_label:
+			wall_area_label.text = "Wall Area: %.2f m²" % wall_area if wall_area > 0.0 else "Wall Area: --"
 		if volume_label:
-			volume_label.text = "Volume: %.1f m³" % vol if vol > 0.0 else "Volume: --"
+			volume_label.text = "Volume: %.2f m³" % vol if vol > 0.0 else "Volume: --"
 
 	if surfaces_label:
 		if surfaces_count > 0:
@@ -311,6 +458,80 @@ func _refresh_scene_list() -> void:
 		scene_list_container.add_child(row)
 
 
+func _refresh_saved_rooms_list() -> void:
+	if not saved_rooms_container:
+		return
+
+	for child in saved_rooms_container.get_children():
+		child.queue_free()
+
+	var saved_rooms = RoomDataManager.list_saved_rooms()
+
+	if saved_rooms.is_empty():
+		var empty_lbl = Label.new()
+		empty_lbl.text = "No saved room scans found. Enter a name above and click 'Save Room Scan'!"
+		empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty_lbl.modulate = Color(0.7, 0.75, 0.85)
+		saved_rooms_container.add_child(empty_lbl)
+		return
+
+	for room_data in saved_rooms:
+		var room_name = room_data.get("room_name", "Unknown Room")
+		var key = room_data.get("key", "")
+		var area = room_data.get("floor_area_sqm", 0.0)
+		var h = room_data.get("ceiling_height", 0.0)
+		var walls_cnt = room_data.get("walls_count", 0)
+		var doors_cnt = room_data.get("doors_count", 0)
+		var windows_cnt = room_data.get("windows_count", 0)
+
+		var row = PanelContainer.new()
+		var row_box = HBoxContainer.new()
+		row_box.add_theme_constant_override("separation", 12)
+
+		var text_vbox = VBoxContainer.new()
+		text_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+		var name_lbl = Label.new()
+		name_lbl.text = room_name
+		name_lbl.add_theme_font_size_override("font_size", 15)
+		name_lbl.modulate = Color(0.25, 0.85, 1.0)
+		text_vbox.add_child(name_lbl)
+
+		var details_lbl = Label.new()
+		details_lbl.text = "Area: %.1f m² | H: %.2f m | Walls: %d | Doors: %d | Windows: %d" % [
+			area, h, walls_cnt, doors_cnt, windows_cnt
+		]
+		details_lbl.add_theme_font_size_override("font_size", 12)
+		details_lbl.modulate = Color(0.7, 0.8, 0.9)
+		text_vbox.add_child(details_lbl)
+
+		row_box.add_child(text_vbox)
+
+		var load_btn = Button.new()
+		load_btn.text = "📂 Load Scan"
+		load_btn.custom_minimum_size = Vector2(110, 36)
+		load_btn.pressed.connect(func():
+			show_status("Loading room scan '%s'..." % room_name)
+			load_room_spec_requested.emit(key)
+		)
+		_register_hover_effect(load_btn, "Load physical room scan: " + room_name)
+		row_box.add_child(load_btn)
+
+		var del_btn = Button.new()
+		del_btn.text = "🗑 Delete"
+		del_btn.custom_minimum_size = Vector2(85, 36)
+		del_btn.pressed.connect(func():
+			show_status("Deleted room scan '%s'" % room_name)
+			delete_room_spec_requested.emit(key)
+			_refresh_saved_rooms_list()
+		)
+		_register_hover_effect(del_btn, "Delete saved room scan: " + room_name)
+		row_box.add_child(del_btn)
+
+		row.add_child(row_box)
+		saved_rooms_container.add_child(row)
+
+
 func _on_save_pressed() -> void:
 	var name_to_save = scene_name_input.text.strip_edges() if scene_name_input else ""
 	if name_to_save.is_empty():
@@ -319,6 +540,16 @@ func _on_save_pressed() -> void:
 
 	show_status("Saving layout '%s'..." % name_to_save)
 	save_scene_requested.emit(name_to_save)
+
+
+func _on_save_room_scan_pressed() -> void:
+	var name_to_save = room_scan_name_input.text.strip_edges() if room_scan_name_input else ""
+	if name_to_save.is_empty():
+		show_status("Please enter a room name to save scan!", true)
+		return
+
+	show_status("Saving room scan '%s'..." % name_to_save)
+	save_room_spec_requested.emit(name_to_save)
 
 
 func _on_clear_pressed() -> void:
@@ -355,5 +586,6 @@ func _on_unit_toggle_pressed() -> void:
 	_use_imperial = not _use_imperial
 	if unit_toggle_button:
 		unit_toggle_button.text = "Unit: Feet (ft)" if _use_imperial else "Unit: Meters (m)"
+	_update_room_spec_display()
 	_update_dimensions_display()
 	unit_preference_changed.emit(_use_imperial)

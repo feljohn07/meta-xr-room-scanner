@@ -4,7 +4,28 @@ All notable changes, architectural features, fixes, and documentation for the **
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.1] - 2026-09-16
+## [1.7.0] - 2026-09-16
+
+### Added
+- **Step 1: Architectural Room Data Model & Multi-Room Persistence (`room_data_manager.gd`)**:
+  - Global `RoomDataManager` class formalizing the room capture pipeline into an architectural Room Specification schema.
+  - Semantic surface classification for Meta Quest Scene API anchors into `floor`, `ceiling`, `walls`, `openings` (doors, windows), and `detected_furniture` (couches, tables, beds, storage, lamps).
+  - Spatial metrics engine computing:
+    - Floor area ($m^2$ and $\text{sq ft}$) and wall surface area ($m^2$ and $\text{sq ft}$).
+    - Room perimeter ($m$ and $\text{ft}$), volume ($m^3$ and $\text{cu ft}$), and span dimensions ($W \times L \times H$).
+    - Exact floor and ceiling plane elevations.
+    - Global bounding extents (min, max, center).
+  - Multi-Room profile persistence under `user://room_scans/<room_name>.json` with a centralized master index (`rooms_index.json`).
+  - Smart spatial query helpers (`get_floor_elevation()`, `get_ceiling_elevation()`, `get_nearest_wall()`) providing the architectural foundation for Step 2 furniture drop and wall-flush snapping.
+- **Dedicated "🏛️ Room Scans" Architectural Hub (`scene_selector_ui.tscn`, `scene_selector_ui.gd`)**:
+  - Enhanced Header with dedicated `TabRoomBtn` ("🏛️ Room Scans") allowing effortless switching between Spatial Anchor Layouts, Architectural Room Specs, Laser Tape Measuring, and CAD Dollhouse.
+  - Complete architectural spec card (`RoomSpecCard`) displaying floor area, wall surface area, ceiling height, floor elevation, span dimensions, perimeter, volume, and element counts (walls, doors, windows, objects).
+  - Custom room scan profile naming and one-tap save (`RoomScanNameInput` + `SaveRoomScanBtn`).
+  - Saved room profiles management card (`SavedRoomsCard`) rendering dynamic room cards with floor area, ceiling height, element counts, "Load Scan" and "Delete" actions.
+  - Dual metric/imperial real-time conversions across all room specification cards.
+- **Runtime Synchronization (`main.gd`)**:
+  - Wired `RoomDataManager.extract_room_spec()` to scene capture completion and anchor lifecycle events.
+  - Synchronized live `current_room_spec` between the runtime engine, the Hand-Anchored Tablet UI, and the Palm/Wrist Watch HUD.
 
 ### Fixed
 - **Optical Joint-Distance Pinch Recognition (`hand_pinch_detector.gd`)**:

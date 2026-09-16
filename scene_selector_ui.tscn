@@ -194,35 +194,42 @@ theme_override_constants/separation = 12
 [node name="TitleLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/HeaderHBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 24
-text = "XR Space & Measurement Hub"
+theme_override_font_sizes/font_size = 20
+text = "XR Space Hub"
 
 [node name="TabLayoutsBtn" type="Button" parent="PanelContainer/MarginContainer/MainVBox/HeaderHBox"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(110, 38)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "📋 Layouts"
+
+[node name="TabRoomBtn" type="Button" parent="PanelContainer/MarginContainer/MainVBox/HeaderHBox"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(130, 38)
 layout_mode = 2
-theme_override_font_sizes/font_size = 15
-text = "📋 Layouts"
+theme_override_font_sizes/font_size = 14
+text = "🏛️ Room Scans"
 
 [node name="TabMeasureBtn" type="Button" parent="PanelContainer/MarginContainer/MainVBox/HeaderHBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(140, 38)
+custom_minimum_size = Vector2(135, 38)
 layout_mode = 2
-theme_override_font_sizes/font_size = 15
-text = "📐 Measurements"
+theme_override_font_sizes/font_size = 14
+text = "📐 Tape Measure"
 
 [node name="TabCadBtn" type="Button" parent="PanelContainer/MarginContainer/MainVBox/HeaderHBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(145, 38)
+custom_minimum_size = Vector2(140, 38)
 layout_mode = 2
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 14
 text = "🏢 CAD Dollhouse"
 
 [node name="CloseButton" type="Button" parent="PanelContainer/MarginContainer/MainVBox/HeaderHBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(90, 38)
+custom_minimum_size = Vector2(85, 38)
 layout_mode = 2
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 14
 text = "✕ Close"
 
 [node name="HSeparator1" type="HSeparator" parent="PanelContainer/MarginContainer/MainVBox"]
@@ -285,6 +292,171 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 15
 text = "💾 Save Current"
 
+[node name="RoomView" type="VBoxContainer" parent="PanelContainer/MarginContainer/MainVBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="RoomScroll" type="ScrollContainer" parent="PanelContainer/MarginContainer/MainVBox/RoomView"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RoomContentVBox" type="VBoxContainer" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="RoomSpecCard" type="PanelContainer" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+
+[node name="RoomSpecVBox" type="VBoxContainer" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SpecHeaderHBox" type="HBoxContainer" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard/RoomSpecVBox"]
+layout_mode = 2
+
+[node name="SpecTitle" type="Label" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard/RoomSpecVBox/SpecHeaderHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.25, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 17
+text = "🏛 Architectural Room Specification"
+
+[node name="RescanRoomBtn" type="Button" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard/RoomSpecVBox/SpecHeaderHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "🔄 Recalculate"
+
+[node name="RoomSpecGrid" type="GridContainer" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard/RoomSpecVBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 20
+theme_override_constants/v_separation = 6
+columns = 4
+
+[node name="SpecFloorAreaLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard/RoomSpecVBox/RoomSpecGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.95, 0.65, 1)
+theme_override_font_sizes/font_size = 15
+text = "Floor Area: --"
+
+[node name="SpecWallAreaLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard/RoomSpecVBox/RoomSpecGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.95, 0.65, 1)
+theme_override_font_sizes/font_size = 15
+text = "Wall Area: --"
+
+[node name="SpecCeilingHeightLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard/RoomSpecVBox/RoomSpecGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Ceiling Height: --"
+
+[node name="SpecFloorElevationLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard/RoomSpecVBox/RoomSpecGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Floor Elev: --"
+
+[node name="SpecWidthLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard/RoomSpecVBox/RoomSpecGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Width (Span X): --"
+
+[node name="SpecLengthLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard/RoomSpecVBox/RoomSpecGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Length (Span Z): --"
+
+[node name="SpecPerimeterLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard/RoomSpecVBox/RoomSpecGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Perimeter: --"
+
+[node name="SpecVolumeLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard/RoomSpecVBox/RoomSpecGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Volume: --"
+
+[node name="SpecSep" type="HSeparator" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard/RoomSpecVBox"]
+layout_mode = 2
+
+[node name="SpecElementsLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSpecCard/RoomSpecVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "Architectural Elements: 🧱 0 Walls | 🚪 0 Doors | 🪟 0 Windows | 🛋️ 0 Objects"
+
+[node name="RoomSaveCard" type="PanelContainer" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+
+[node name="RoomSaveVBox" type="VBoxContainer" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSaveCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SaveScanTitle" type="Label" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSaveCard/RoomSaveVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.25, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "💾 Save Physical Room Scan Profile"
+
+[node name="SaveScanDesc" type="Label" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSaveCard/RoomSaveVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.75, 0.85, 1)
+theme_override_font_sizes/font_size = 13
+text = "Persist architectural geometry to user://room_scans/ for space reimagining & catalog layout."
+
+[node name="SaveScanHBox" type="HBoxContainer" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSaveCard/RoomSaveVBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="RoomScanNameInput" type="LineEdit" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSaveCard/RoomSaveVBox/SaveScanHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 15
+placeholder_text = "Enter room scan name (e.g. Living Room, Bedroom, Office)..."
+
+[node name="SaveRoomScanBtn" type="Button" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/RoomSaveCard/RoomSaveVBox/SaveScanHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 40)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "💾 Save Room Scan"
+
+[node name="SavedRoomsCard" type="PanelContainer" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+
+[node name="SavedRoomsVBox" type="VBoxContainer" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/SavedRoomsCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SavedRoomsTitle" type="Label" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/SavedRoomsCard/SavedRoomsVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.25, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "📂 Saved Room Profiles (user://room_scans/)"
+
+[node name="SavedRoomsContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer/MainVBox/RoomView/RoomScroll/RoomContentVBox/SavedRoomsCard/SavedRoomsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
+
 [node name="MeasureView" type="VBoxContainer" parent="PanelContainer/MarginContainer/MainVBox"]
 unique_name_in_owner = true
 visible = false
@@ -319,27 +491,33 @@ text = "🔄 Recalculate"
 
 [node name="DimensionsGrid" type="GridContainer" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox"]
 layout_mode = 2
-theme_override_constants/h_separation = 24
+theme_override_constants/h_separation = 20
 theme_override_constants/v_separation = 6
-columns = 3
+columns = 4
 
 [node name="HeightLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/DimensionsGrid"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 15
 text = "Height (Ceiling): --"
 
 [node name="WidthLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/DimensionsGrid"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 15
 text = "Width (Span X): --"
 
 [node name="LengthLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/DimensionsGrid"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 15
 text = "Length (Span Z): --"
+
+[node name="PerimeterLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/DimensionsGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Perimeter: --"
 
 [node name="AreaLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/DimensionsGrid"]
 unique_name_in_owner = true
@@ -347,6 +525,13 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.9, 0.7, 1)
 theme_override_font_sizes/font_size = 15
 text = "Floor Area: --"
+
+[node name="WallAreaLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/DimensionsGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.9, 0.7, 1)
+theme_override_font_sizes/font_size = 15
+text = "Wall Area: --"
 
 [node name="VolumeLabel" type="Label" parent="PanelContainer/MarginContainer/MainVBox/MeasureView/RoomCard/RoomCardVBox/DimensionsGrid"]
 unique_name_in_owner = true

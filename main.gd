@@ -14,6 +14,7 @@ var global_environment_depth_enabled: bool = true
 
 var active_scene_name: String = "Default"
 var saved_scenes: Dictionary = {}
+var current_room_spec: Dictionary = {}
 var _is_switching_layout: bool = false
 var _setup := false
 
@@ -251,6 +252,12 @@ func _setup_scene_menu() -> void:
 			ui.unit_preference_changed.connect(_on_ui_unit_preference_changed)
 		if ui.has_signal("toggle_cad_view_requested") and not ui.toggle_cad_view_requested.is_connected(toggle_cad_viewer):
 			ui.toggle_cad_view_requested.connect(toggle_cad_viewer)
+		if ui.has_signal("save_room_spec_requested") and not ui.save_room_spec_requested.is_connected(_on_ui_save_room_spec):
+			ui.save_room_spec_requested.connect(_on_ui_save_room_spec)
+		if ui.has_signal("load_room_spec_requested") and not ui.load_room_spec_requested.is_connected(_on_ui_load_room_spec):
+			ui.load_room_spec_requested.connect(_on_ui_load_room_spec)
+		if ui.has_signal("delete_room_spec_requested") and not ui.delete_room_spec_requested.is_connected(_on_ui_delete_room_spec):
+			ui.delete_room_spec_requested.connect(_on_ui_delete_room_spec)
 
 	if mini_cad_viewer:
 		mini_cad_viewer.initialize_managers(scene_manager, spatial_anchor_manager)
@@ -269,6 +276,52 @@ func _on_ui_request_room_capture() -> void:
 
 func _on_ui_close_requested() -> void:
 	toggle_scene_menu(false)
+
+
+func _on_ui_save_room_spec(room_name: String) -> void:
+	if scene_manager:
+		current_room_spec = RoomDataManager.extract_room_spec(scene_manager, room_name)
+	var success = RoomDataManager.save_room_spec(room_name, current_room_spec)
+	if scene_menu_viewport:
+		var ui = scene_menu_viewport.get_scene_root()
+		if ui:
+			if success:
+				ui.show_status("Room scan '%s' saved successfully!" % room_name)
+				if ui.has_method("set_room_spec"):
+					ui.set_room_spec(current_room_spec)
+			else:
+				ui.show_status("Failed to save room scan.", true)
+
+
+func _on_ui_load_room_spec(room_key: String) -> void:
+	var spec = RoomDataManager.load_room_spec(room_key)
+	if spec.is_empty():
+		if scene_menu_viewport:
+			var ui = scene_menu_viewport.get_scene_root()
+			if ui:
+				ui.show_status("Could not load room scan '%s'." % room_key, true)
+		return
+
+	current_room_spec = spec
+	active_scene_name = spec.get("room_name", room_key)
+	if scene_menu_viewport:
+		var ui = scene_menu_viewport.get_scene_root()
+		if ui:
+			if ui.has_method("set_room_spec"):
+				ui.set_room_spec(current_room_spec)
+			ui.show_status("Loaded room scan '%s'!" % active_scene_name)
+
+	_update_scene_ui()
+
+
+func _on_ui_delete_room_spec(room_key: String) -> void:
+	RoomDataManager.delete_room_spec(room_key)
+	if scene_menu_viewport:
+		var ui = scene_menu_viewport.get_scene_root()
+		if ui:
+			ui.show_status("Deleted room scan '%s'." % room_key)
+			if ui.has_method("set_room_spec"):
+				ui.set_room_spec(current_room_spec)
 
 
 func _on_ui_toggle_tape_measure(enabled: bool) -> void:
@@ -521,12 +574,18 @@ func refresh_and_send_room_dimensions() -> void:
 	if scene_manager and not scene_manager.are_scene_anchors_created():
 		scene_manager.create_scene_anchors()
 
+	if scene_manager:
+		current_room_spec = RoomDataManager.extract_room_spec(scene_manager, active_scene_name)
+
 	if not scene_menu_viewport:
 		return
 	var ui = scene_menu_viewport.get_scene_root()
-	if ui and ui.has_method("set_room_dimensions"):
-		var dims = calculate_room_dimensions()
-		ui.set_room_dimensions(dims)
+	if ui:
+		if ui.has_method("set_room_spec"):
+			ui.set_room_spec(current_room_spec)
+		if ui.has_method("set_room_dimensions"):
+			var dims = calculate_room_dimensions()
+			ui.set_room_dimensions(dims)
 
 
 func load_all_saved_scenes() -> void:
@@ -699,6 +758,10 @@ func _update_scene_ui() -> void:
 		if ui:
 			if ui.has_method("set_scenes_data"):
 				ui.set_scenes_data(saved_scenes, active_scene_name, count)
+			if ui.has_method("set_room_spec"):
+				if current_room_spec.is_empty() and scene_manager:
+					current_room_spec = RoomDataManager.extract_room_spec(scene_manager, active_scene_name)
+				ui.set_room_spec(current_room_spec)
 			if ui.has_method("set_room_dimensions"):
 				ui.set_room_dimensions(calculate_room_dimensions())
 			if ui.has_method("set_tape_measure_state"):
