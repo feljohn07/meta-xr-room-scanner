@@ -261,6 +261,7 @@ func _setup_scene_menu() -> void:
 
 	if mini_cad_viewer:
 		mini_cad_viewer.initialize_managers(scene_manager, spatial_anchor_manager)
+		mini_cad_viewer.set_camera(xr_camera)
 
 	_update_scene_ui()
 
@@ -893,6 +894,7 @@ func toggle_cad_viewer(enable = null) -> void:
 	mini_cad_viewer.visible = enable
 	if enable:
 		position_cad_viewer_in_front_of_player()
+		mini_cad_viewer.set_camera(xr_camera)
 		mini_cad_viewer.set_saved_scenes_data(saved_scenes, active_scene_name)
 		mini_cad_viewer.rebuild_cad_model()
 

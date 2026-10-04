@@ -16,6 +16,7 @@ This project demonstrates an enterprise-grade Mixed Reality (MR) application uti
 | [**Project Configuration & Deployment**](project_configuration_and_deployment.md) | Godot project settings, OpenXR Action Map, Android export presets for Meta Quest, and addon dependencies. |
 | [**Controls & User Guide**](controls_and_user_guide.md) | Headset controller bindings, interactive UI instructions, and operational workflows for users and testers. |
 | [**Mini CAD / Dollhouse Viewer**](mini_cad_viewer.md) | Architectural AutoCAD-style miniature blueprint workstation: 3D isometric and 2D floorplan views, scale ratios, and grab/drag repositioning. |
+| [**Room Reconstruction & Dollhouse System**](room_reconstruction_and_dollhouse_system.md) | Technical specification for 2.5D parametric wall extrusion, OBB calculation, holographic frosted shaders, and real-time player locator pin. |
 | [**Project Technical Audit & Analysis**](project_audit.md) | Baseline technical audit, architectural diagrams, subsystem evaluations, and bug audit. |
 | [**Future Implementations Roadmap**](future%20implementation/README.md) | Specifications and design blueprints for upcoming project phases (Step 2 Item Catalog, 3D Gizmos, Dollhouse Sync). |
 | [**Project Changelog**](../CHANGELOG.md) | Detailed version history of all features, enhancements, architecture changes, and bug fixes. |

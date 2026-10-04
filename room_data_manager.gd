@@ -415,3 +415,213 @@ static func get_nearest_wall(point: Vector3, spec: Dictionary) -> Dictionary:
 			best_wall = w
 
 	return best_wall
+
+
+## Calculates the 2D Oriented Bounding Box (OBB) & 3D Extrusion Bounds
+## Aligns to the dominant wall angle to create a snug, clean architectural footprint
+static func calculate_room_obb(scene_manager: OpenXRFbSceneManager) -> Dictionary:
+	var result := {
+		"valid": false,
+		"yaw": 0.0,
+		"center": Vector3.ZERO,
+		"floor_elevation": 0.0,
+		"ceiling_elevation": 2.5,
+		"height": 2.5,
+		"width": 0.0,
+		"length": 0.0,
+		"corners": [] as Array[Vector3], # 4 floor corners in clockwise/counter-clockwise order
+		"ceiling_corners": [] as Array[Vector3] # 4 ceiling corners
+	}
+
+	if not scene_manager:
+		return result
+
+	var children = scene_manager.get_children()
+	if children.is_empty():
+		return result
+
+	var all_corners: Array[Vector3] = []
+	var wall_angles: Array[float] = []
+	var floor_y: float = INF
+	var ceiling_y: float = -INF
+	var found_floor: bool = false
+	var found_ceiling: bool = false
+
+	for child in children:
+		if not (child is Node3D):
+			continue
+
+		var lbl_node = child.get_node_or_null("Label3D")
+		var lbl_text = lbl_node.text.to_lower() if lbl_node else ""
+		var dims = _extract_element_dimensions(child)
+		var corners = _get_transformed_corners(child, dims)
+
+		for c in corners:
+			all_corners.append(c)
+
+		if "floor" in lbl_text:
+			found_floor = true
+			floor_y = minf(floor_y, child.global_position.y)
+		elif "ceiling" in lbl_text:
+			found_ceiling = true
+			ceiling_y = maxf(ceiling_y, child.global_position.y)
+		elif "wall" in lbl_text:
+			var normal = -child.global_transform.basis.z.normalized()
+			var angle = atan2(normal.z, normal.x)
+			wall_angles.append(angle)
+
+	if all_corners.is_empty():
+		return result
+
+	# Fallback elevations if explicit floor/ceiling anchors weren't tagged
+	if not found_floor or floor_y == INF:
+		floor_y = INF
+		for c in all_corners:
+			floor_y = minf(floor_y, c.y)
+	if not found_ceiling or ceiling_y == -INF:
+		ceiling_y = -INF
+		for c in all_corners:
+			ceiling_y = maxf(ceiling_y, c.y)
+
+	var height = ceiling_y - floor_y
+	if height <= 0.2:
+		height = 2.5
+		ceiling_y = floor_y + height
+
+	# 1. Calculate dominant yaw orientation angle θ
+	var dominant_yaw: float = 0.0
+	if not wall_angles.is_empty():
+		var sum_sin = 0.0
+		var sum_cos = 0.0
+		for a in wall_angles:
+			# Fold angles into [0, PI/2) via circular mod
+			var folded = fposmod(a, PI * 0.5)
+			sum_sin += sin(folded * 4.0)
+			sum_cos += cos(folded * 4.0)
+		dominant_yaw = atan2(sum_sin, sum_cos) * 0.25
+
+	# 2. Project corners into local 2D space aligned to dominant_yaw
+	var cos_a = cos(dominant_yaw)
+	var sin_a = sin(dominant_yaw)
+
+	var min_lx = INF
+	var max_lx = -INF
+	var min_lz = INF
+	var max_lz = -INF
+
+	for c in all_corners:
+		var lx = c.x * cos_a + c.z * sin_a
+		var lz = -c.x * sin_a + c.z * cos_a
+		min_lx = minf(min_lx, lx)
+		max_lx = maxf(max_lx, lx)
+		min_lz = minf(min_lz, lz)
+		max_lz = maxf(max_lz, lz)
+
+	var width = max_lx - min_lx
+	var length = max_lz - min_lz
+
+	# 3. Compute 4 corner points in local 2D space
+	var local_corners = [
+		Vector2(min_lx, min_lz), # Corner 0: bottom-left
+		Vector2(max_lx, min_lz), # Corner 1: bottom-right
+		Vector2(max_lx, max_lz), # Corner 2: top-right
+		Vector2(min_lx, max_lz)  # Corner 3: top-left
+	]
+
+	# 4. Un-rotate local corners back to 3D world space
+	var floor_corners: Array[Vector3] = []
+	var ceil_corners: Array[Vector3] = []
+
+	for lc in local_corners:
+		var wx = lc.x * cos_a - lc.y * sin_a
+		var wz = lc.x * sin_a + lc.y * cos_a
+		floor_corners.append(Vector3(wx, floor_y, wz))
+		ceil_corners.append(Vector3(wx, ceiling_y, wz))
+
+	var center_lx = (min_lx + max_lx) * 0.5
+	var center_lz = (min_lz + max_lz) * 0.5
+	var center_wx = center_lx * cos_a - center_lz * sin_a
+	var center_wz = center_lx * sin_a + center_lz * cos_a
+	var room_center = Vector3(center_wx, (floor_y + ceiling_y) * 0.5, center_wz)
+
+	result["valid"] = true
+	result["yaw"] = dominant_yaw
+	result["center"] = room_center
+	result["floor_elevation"] = floor_y
+	result["ceiling_elevation"] = ceiling_y
+	result["height"] = height
+	result["width"] = width
+	result["length"] = length
+	result["corners"] = floor_corners
+	result["ceiling_corners"] = ceil_corners
+
+	return result
+
+
+## Returns complete parametric room specification including clean OBB, furniture proxy volumes, and openings
+static func get_parametric_room_layout(scene_manager: OpenXRFbSceneManager) -> Dictionary:
+	var obb = calculate_room_obb(scene_manager)
+	var layout := {
+		"obb": obb,
+		"furniture": [] as Array[Dictionary],
+		"openings": [] as Array[Dictionary],
+		"walls": [] as Array[Dictionary]
+	}
+
+	if not scene_manager:
+		return layout
+
+	var furn_id = 0
+	var open_id = 0
+	var wall_id = 0
+
+	for child in scene_manager.get_children():
+		if not (child is Node3D):
+			continue
+
+		var lbl_node = child.get_node_or_null("Label3D")
+		var lbl_text = lbl_node.text.to_lower() if lbl_node else ""
+		var dims = _extract_element_dimensions(child)
+		var pos = child.global_position
+		var rot = child.global_rotation
+
+		if "wall" in lbl_text:
+			wall_id += 1
+			layout["walls"].append({
+				"id": "wall_" + str(wall_id),
+				"position": pos,
+				"rotation": rot,
+				"dimensions": dims,
+				"node": child
+			})
+		elif "door" in lbl_text or "window" in lbl_text:
+			open_id += 1
+			layout["openings"].append({
+				"id": "opening_" + str(open_id),
+				"type": "door" if "door" in lbl_text else "window",
+				"position": pos,
+				"rotation": rot,
+				"dimensions": dims,
+				"node": child
+			})
+		elif (
+			"bed" in lbl_text
+			or "couch" in lbl_text
+			or "table" in lbl_text
+			or "desk" in lbl_text
+			or "storage" in lbl_text
+			or "screen" in lbl_text
+			or "lamp" in lbl_text
+			or "plant" in lbl_text
+		):
+			furn_id += 1
+			layout["furniture"].append({
+				"id": "item_" + str(furn_id),
+				"label": lbl_text,
+				"position": pos,
+				"rotation": rot,
+				"dimensions": dims,
+				"node": child
+			})
+
+	return layout

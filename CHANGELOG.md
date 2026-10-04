@@ -4,6 +4,31 @@ All notable changes, architectural features, fixes, and documentation for the **
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-10-04
+
+### Added
+- **Parametric 2.5D Room Reconstruction Engine (`room_data_manager.gd`)**:
+  - `calculate_room_obb()`: Implemented 2D Oriented Bounding Box (OBB) algorithm utilizing wall normal clustering and circular angle averaging under the Manhattan World Assumption.
+  - Eliminates skewed, oversized bounds caused by global Axis-Aligned Bounding Boxes (AABB) when rooms are rotated relative to tracking origin.
+  - Computes the dominant architectural yaw angle $\theta$, local rotated spans, and the 4 world-space floor corners $P_0, P_1, P_2, P_3$.
+  - `get_parametric_room_layout()`: Compiles a structured parametric room model containing OBB geometry, classified furniture bounding volumes (`bed`, `couch`, `table`, `storage`, `desk`), room openings (`door`, `window`), and wall anchors.
+- **Floating Miniature Dollhouse Diorama (`mini_cad_viewer.gd`, `mini_cad_viewer.tscn`)**:
+  - Replicated Meta Quest's native room capture review interface with a clean floating miniature room diorama.
+  - **Procedural Cutaway Walls**: Extrudes 4 clean, perpendicular wall volumes along the floor corner perimeters with an open ceiling for top-down and isometric interior visibility.
+  - **Frosted Holographic Shader (`assets/dollhouse_frosted.gdshader`)**: Soft translucent frosted-glass material with dual-sided fresnel rim lighting and glowing edges.
+  - **Furniture Proxy Volumes**: Procedurally spawns clean, translucent bounding boxes with wireframe edge highlights for detected furniture (beds, tables, couches, cabinets).
+  - **Live Player Locator Pin ("You Are Here" Marker)**: Radiant amber/orange avatar pawn standing inside the miniature room that tracks the user's physical headset position and viewing yaw in real time.
+  - **Ergonomic Direct Interaction**: Enlarged 6DoF interaction volume allowing users to grab and reposition the floating miniature room anywhere in space using controller or pinch raycasts.
+  - **Minimalist Meta Styling**: Automatically hides heavy CAD grid baseplates and controls in dollhouse mode for a clean floating holographic appearance.
+- **1:1 World-Space Blue Wireframe Overlays (`scene_anchor.gd`)**:
+  - Procedurally renders vibrant cyan/blue wireframe outlines (`#00D9FF`) around physical furniture and door/window openings in real-world space, matching Meta's spatial capture review mode.
+- **Syntax Quality Gate (`verify_syntax.py`)**:
+  - Added standalone automated GDScript syntax verification tool satisfying Stage 4 automated engine checks.
+- **Comprehensive Living Documentation**:
+  - Created `documentation/room_reconstruction_and_dollhouse_system.md` detailing mathematical OBB formulations, coordinate transformations, shader specifications, and API reference.
+
+---
+
 ## [1.7.0] - 2026-09-16
 
 ### Added
