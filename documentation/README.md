@@ -18,7 +18,8 @@ This project demonstrates an enterprise-grade Mixed Reality (MR) application uti
 | [**Mini CAD / Dollhouse Viewer**](mini_cad_viewer.md) | Architectural AutoCAD-style miniature blueprint workstation: 3D isometric and 2D floorplan views, scale ratios, and grab/drag repositioning. |
 | [**Room Reconstruction & Dollhouse System**](room_reconstruction_and_dollhouse_system.md) | Technical specification for 2.5D parametric wall extrusion, OBB calculation, holographic frosted shaders, and real-time player locator pin. |
 | [**Project Technical Audit & Analysis**](project_audit.md) | Baseline technical audit, architectural diagrams, subsystem evaluations, and bug audit. |
-| [**Future Implementations Roadmap**](future%20implementation/README.md) | Specifications and design blueprints for upcoming project phases (Step 2 Item Catalog, 3D Gizmos, Dollhouse Sync). |
+| [**Future Implementations Roadmap**](future%20implementation/README.md) | Specifications and design blueprints for upcoming project phases (Step 2 Item Catalog, Step 3 Hand Gestures, 3D Gizmos, Dollhouse Sync). |
+| [**Advanced Hand Tracking Gestures**](future%20implementation/step_3_advanced_hand_tracking_gestures.md) | Technical specification for anti-Heisenberg ray latching, acoustic pseudo-haptics, bimanual scale, and palm-up glance HUD. |
 | [**Project Changelog**](../CHANGELOG.md) | Detailed version history of all features, enhancements, architecture changes, and bug fixes. |
 
 ---
