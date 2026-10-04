@@ -17,6 +17,15 @@ signal pinch_released
 ## Emitted whenever the continuous pinch strength (0.0 to 1.0) updates
 signal pinch_strength_changed(strength: float)
 
+## Emitted when pinch enters the pre-pinch latching band (0.65 to 0.85) to lock aim
+signal pinch_latching(strength: float)
+
+## Secondary pinch signals (Thumb + Middle Finger chord)
+signal secondary_pinch_tapped
+signal secondary_pinch_held
+signal secondary_pinch_released
+signal secondary_pinch_strength_changed(strength: float)
+
 ## The primary pinch action (supports "trigger", "pinch_value", "index_pinch_strength", etc.)
 @export var pinch_action: String = "trigger"
 
@@ -34,11 +43,20 @@ var _pinching := false
 # true when fingers have been pinched for a long time
 var _pinching_held := false
 
+# true when in the pre-pinch stabilization band (locks ray aim)
+var _is_latching := false
+
 # current pinch strength (0.0 to 1.0)
 var _current_strength: float = 0.0
 
 # the timestamp when [param _pinching] changed from false->true
 var _timestamp_when_pinch_detected := 0
+
+# Secondary pinch state (Thumb to Middle finger)
+var _sec_pinching := false
+var _sec_pinching_held := false
+var _sec_current_strength: float = 0.0
+var _sec_timestamp_when_pinch_detected := 0
 
 # the parent controller
 var _controller: XRController3D
@@ -53,8 +71,20 @@ func is_pinching() -> bool:
 	return _pinching
 
 
+func is_latching() -> bool:
+	return _is_latching
+
+
 func get_pinch_strength() -> float:
 	return _current_strength
+
+
+func is_secondary_pinching() -> bool:
+	return _sec_pinching
+
+
+func get_secondary_pinch_strength() -> float:
+	return _sec_current_strength
 
 
 func _enter_tree() -> void:
@@ -86,8 +116,20 @@ func _process(_delta: float) -> void:
 		_current_strength = optical_strength
 		pinch_strength_changed.emit(_current_strength)
 
+		# 1. Pre-pinch aim latching zone (0.65 to 0.85) to lock distant reticle
+		if not _pinching:
+			if optical_strength >= 0.65 and optical_strength < 0.85:
+				if not _is_latching:
+					_is_latching = true
+				pinch_latching.emit(optical_strength)
+			elif optical_strength < 0.50 and _is_latching:
+				_is_latching = false
+				pinch_latching.emit(0.0)
+
+		# 2. Primary Pinch trigger threshold (0.85 to contact)
 		if not _pinching:
 			if optical_strength > 0.85:
+				_is_latching = false
 				_pinching = true
 				_timestamp_when_pinch_detected = Time.get_ticks_msec()
 				if _pinching_held_timer:
@@ -95,6 +137,24 @@ func _process(_delta: float) -> void:
 		else:
 			if optical_strength < 0.40:
 				_end_pinch()
+
+		# 3. Secondary Pinch detection (Thumb to Middle finger tip)
+		var middle_tf: Transform3D = tracker.get_hand_joint_transform(XRHandTracker.HAND_JOINT_MIDDLE_FINGER_TIP)
+		var sec_dist: float = thumb_tf.origin.distance_to(middle_tf.origin)
+		var sec_strength: float = clampf(inverse_lerp(0.055, 0.024, sec_dist), 0.0, 1.0)
+		_sec_current_strength = sec_strength
+		secondary_pinch_strength_changed.emit(_sec_current_strength)
+
+		if not _sec_pinching:
+			if sec_strength > 0.85:
+				_sec_pinching = true
+				_sec_timestamp_when_pinch_detected = Time.get_ticks_msec()
+		else:
+			if sec_strength < 0.40:
+				_end_secondary_pinch()
+			elif not _sec_pinching_held and (Time.get_ticks_msec() - _sec_timestamp_when_pinch_detected) >= int(pinch_held_duration * 1000.0):
+				_sec_pinching_held = true
+				secondary_pinch_held.emit()
 
 
 func _exit_tree() -> void:
@@ -185,9 +245,11 @@ func _on_button_released(action_name: String) -> void:
 
 
 func _end_pinch() -> void:
+	_is_latching = false
 	_pinching = false
 	_current_strength = 0.0
 	pinch_strength_changed.emit(0.0)
+	pinch_latching.emit(0.0)
 	_pinching_held_timer.stop()
 
 	# don't emit pinch-tap if pinch-held was already emitted
@@ -198,6 +260,19 @@ func _end_pinch() -> void:
 		pinch_tapped.emit()
 
 	pinch_released.emit()
+
+
+func _end_secondary_pinch() -> void:
+	_sec_pinching = false
+	_sec_current_strength = 0.0
+	secondary_pinch_strength_changed.emit(0.0)
+
+	if _sec_pinching_held:
+		_sec_pinching_held = false
+	elif Time.get_ticks_msec() - _sec_timestamp_when_pinch_detected < pinch_tap_duration:
+		secondary_pinch_tapped.emit()
+
+	secondary_pinch_released.emit()
 
 
 func _on_timer_timeout() -> void:

@@ -34,6 +34,15 @@ var active_anchor_color_index: int = 4 # Default Cyan (#00FFFF)
 var active_anchor_color: Color = Color("#00FFFF")
 var active_anchor_label: String = ""
 
+# Procedural Acoustic Pseudo-Haptics
+var pseudo_haptics: PseudoHapticsAudio = null
+
+# Anti-Heisenberg Pre-Pinch Aim Latching
+var _is_aim_latched: bool = false
+var _latched_raycast_target: Object = null
+var _latched_aim_point: Vector3 = Vector3.ZERO
+var _latched_aim_normal: Vector3 = Vector3.UP
+
 @onready var left_hand: XRController3D = $XROrigin3D/LeftHand
 @onready var right_hand: XRController3D = $XROrigin3D/RightHand
 @onready var xr_camera: XRCamera3D = $XROrigin3D/XRCamera3D
@@ -144,6 +153,12 @@ func set_dominant_hand(hand: String) -> void:
 
 func _ready() -> void:
 	super._ready()
+
+	# Initialize procedural acoustic pseudo-haptics
+	pseudo_haptics = PseudoHapticsAudio.new()
+	pseudo_haptics.name = "PseudoHapticsAudio"
+	add_child(pseudo_haptics)
+
 	if xr_interface and xr_interface.is_initialized():
 		if not xr_interface.session_begun.is_connected(_on_openxr_session_begun):
 			xr_interface.session_begun.connect(_on_openxr_session_begun)
@@ -174,12 +189,20 @@ func _ready() -> void:
 			left_pinch_detector.pinch_tapped.connect(_on_hand_pinch_tapped.bind("left"))
 		if not left_pinch_detector.pinch_released.is_connected(_on_hand_pinch_released.bind("left")):
 			left_pinch_detector.pinch_released.connect(_on_hand_pinch_released.bind("left"))
+		if left_pinch_detector.has_signal("pinch_latching") and not left_pinch_detector.pinch_latching.is_connected(_on_hand_pinch_latching.bind("left")):
+			left_pinch_detector.pinch_latching.connect(_on_hand_pinch_latching.bind("left"))
+		if left_pinch_detector.has_signal("secondary_pinch_tapped") and not left_pinch_detector.secondary_pinch_tapped.is_connected(_on_secondary_pinch_tapped.bind("left")):
+			left_pinch_detector.secondary_pinch_tapped.connect(_on_secondary_pinch_tapped.bind("left"))
 
 	if right_pinch_detector:
 		if not right_pinch_detector.pinch_tapped.is_connected(_on_hand_pinch_tapped.bind("right")):
 			right_pinch_detector.pinch_tapped.connect(_on_hand_pinch_tapped.bind("right"))
 		if not right_pinch_detector.pinch_released.is_connected(_on_hand_pinch_released.bind("right")):
 			right_pinch_detector.pinch_released.connect(_on_hand_pinch_released.bind("right"))
+		if right_pinch_detector.has_signal("pinch_latching") and not right_pinch_detector.pinch_latching.is_connected(_on_hand_pinch_latching.bind("right")):
+			right_pinch_detector.pinch_latching.connect(_on_hand_pinch_latching.bind("right"))
+		if right_pinch_detector.has_signal("secondary_pinch_tapped") and not right_pinch_detector.secondary_pinch_tapped.is_connected(_on_secondary_pinch_tapped.bind("right")):
+			right_pinch_detector.secondary_pinch_tapped.connect(_on_secondary_pinch_tapped.bind("right"))
 
 	if left_hand_visuals:
 		if not left_hand_visuals.tracking_mode_changed.is_connected(_on_tracking_mode_changed):
@@ -854,21 +877,99 @@ func _update_hand_tracking_transforms() -> void:
 			active_ptr.global_transform = dom_visuals.get_aim_transform()
 
 
+func _on_hand_pinch_latching(strength: float, hand_name: String) -> void:
+	if hand_name != dominant_hand:
+		return
+
+	if strength >= 0.65:
+		if not _is_aim_latched:
+			var active_rc = get_active_raycast()
+			if active_rc and active_rc.is_colliding():
+				_is_aim_latched = true
+				_latched_raycast_target = active_rc.get_collider()
+				_latched_aim_point = active_rc.get_collision_point()
+				_latched_aim_normal = active_rc.get_collision_normal()
+				if pseudo_haptics:
+					pseudo_haptics.play_magnet_snap()
+	elif strength < 0.50:
+		_is_aim_latched = false
+		_latched_raycast_target = null
+
+
 func _on_hand_pinch_tapped(hand_name: String) -> void:
+	if pseudo_haptics:
+		pseudo_haptics.play_pinch_contact()
+
 	if hand_name == dominant_hand:
 		var active_ptr = get_active_pointer()
 		if active_ptr:
 			_handle_pointer_trigger(active_ptr)
+		# Clear latch after trigger fires
+		_is_aim_latched = false
+		_latched_raycast_target = null
 	else:
+		# If tape measure is active, off-hand pinch anchors Point A (two-handed pull-cord mode)
+		if tape_measure_active:
+			var off_visuals: HandVisuals = left_hand_visuals if dominant_hand == "right" else right_hand_visuals
+			if off_visuals and off_visuals.is_hand_tracking_active():
+				tape_measure_point_a = off_visuals.get_aim_transform().origin
+				tape_measure_has_point_a = true
+				if pseudo_haptics:
+					pseudo_haptics.play_magnet_snap()
+				return
+
 		# Off-hand pinch toggles the hand-anchored tablet menu!
 		toggle_scene_menu()
 
 
 func _on_hand_pinch_released(hand_name: String) -> void:
+	if pseudo_haptics:
+		pseudo_haptics.play_pinch_release()
+
 	if hand_name == dominant_hand:
+		_is_aim_latched = false
+		_latched_raycast_target = null
 		var active_ptr = get_active_pointer()
 		if active_ptr:
 			_handle_pointer_release(active_ptr)
+
+
+func _on_secondary_pinch_tapped(hand_name: String) -> void:
+	if pseudo_haptics:
+		pseudo_haptics.play_pinch_release()
+
+	if hand_name == dominant_hand:
+		var active_ptr = get_active_pointer()
+
+		# 1. Quick-delete hovered spatial anchor
+		if selected_spatial_anchor_node and is_instance_valid(selected_spatial_anchor_node):
+			var anchor_parent = selected_spatial_anchor_node.get_parent()
+			if anchor_parent is XRAnchor3D:
+				spatial_anchor_manager.untrack_anchor(anchor_parent.tracker)
+				trigger_haptic(active_ptr, 100.0, 0.5, 0.06)
+				if pseudo_haptics:
+					pseudo_haptics.play_poke_click()
+				selected_spatial_anchor_node = null
+				return
+
+		# 2. Quick-delete hovered measurement line
+		if hovered_measurement_line and is_instance_valid(hovered_measurement_line):
+			var line_to_delete = hovered_measurement_line
+			hovered_measurement_line = null
+			delete_measurement(line_to_delete)
+			if pseudo_haptics:
+				pseudo_haptics.play_poke_click()
+			return
+
+		# 3. Quick-cycle active anchor color palette
+		cycle_anchor_color()
+		if pseudo_haptics:
+			pseudo_haptics.play_magnet_snap()
+	else:
+		# Off-hand secondary pinch: Toggle Passthrough quickly
+		enable_passthrough(not passthrough_enabled)
+		if pseudo_haptics:
+			pseudo_haptics.play_magnet_snap()
 
 
 func _on_tracking_mode_changed(_is_hand_tracking: bool) -> void:
@@ -1011,7 +1112,26 @@ func _physics_process(_delta: float) -> void:
 	var previous_hovered_line = hovered_measurement_line
 	hovered_measurement_line = null
 
-	# Check if pointing at floating UI menu, CAD controls, or wrist menu
+	# 1. Bimanual CAD dollhouse manipulation (two-handed pinch to scale and steer)
+	if mini_cad_viewer and mini_cad_viewer.visible:
+		var left_is_pinching = left_pinch_detector and left_pinch_detector.is_pinching()
+		var right_is_pinching = right_pinch_detector and right_pinch_detector.is_pinching()
+		if left_is_pinching and right_is_pinching and left_hand and right_hand:
+			var cad_pos = mini_cad_viewer.global_position
+			var dist_l = left_hand.global_position.distance_to(cad_pos)
+			var dist_r = right_hand.global_position.distance_to(cad_pos)
+			if dist_l < 0.65 and dist_r < 0.65:
+				if not mini_cad_viewer.is_bimanual_active:
+					mini_cad_viewer.start_bimanual(left_hand, right_hand)
+					if pseudo_haptics:
+						pseudo_haptics.play_magnet_snap()
+			else:
+				if mini_cad_viewer.is_bimanual_active:
+					mini_cad_viewer.end_bimanual()
+		elif mini_cad_viewer.is_bimanual_active:
+			mini_cad_viewer.end_bimanual()
+
+	# 2. Check if pointing at floating UI menu, CAD controls, or wrist menu
 	var pointing_at_menu := false
 	if scene_menu_viewport and scene_menu_viewport.visible:
 		var hit = scene_menu_viewport.intersects_ray(active_pointer.global_position, -active_pointer.global_transform.basis.z)
@@ -1050,9 +1170,11 @@ func _physics_process(_delta: float) -> void:
 			current_aim_point = active_pointer.global_position - active_pointer.global_transform.basis.z * 3.0
 		tape_measure_preview_line.update_points(tape_measure_point_a, current_aim_point, use_imperial_units)
 
-	if active_raycast and active_raycast.is_colliding():
-		var collision_point: Vector3 = active_raycast.get_collision_point()
-		var collision_normal: Vector3 = active_raycast.get_collision_normal()
+	# Aim stabilization (Anti-Heisenberg latching): use frozen hit if latched
+	var has_hit = (_is_aim_latched and _latched_raycast_target != null) or (active_raycast and active_raycast.is_colliding())
+	if has_hit:
+		var collision_point: Vector3 = _latched_aim_point if (_is_aim_latched and _latched_raycast_target != null) else active_raycast.get_collision_point()
+		var collision_normal: Vector3 = _latched_aim_normal if (_is_aim_latched and _latched_raycast_target != null) else active_raycast.get_collision_normal()
 		if active_colliding_mesh:
 			active_colliding_mesh.global_position = collision_point
 
@@ -1061,7 +1183,7 @@ func _physics_process(_delta: float) -> void:
 			active_pointer_mesh.mesh.size.z = pointer_length
 			active_pointer_mesh.position.z = -pointer_length / 2.0
 
-		# Surface-normal snapping reticle ring
+		# Surface-normal snapping reticle ring (+3mm offset along normal to prevent Z-fighting)
 		if active_reticle_ring:
 			active_reticle_ring.visible = true
 			var norm = collision_normal.normalized()
@@ -1070,8 +1192,8 @@ func _physics_process(_delta: float) -> void:
 			var z_axis = x_axis.cross(norm).normalized()
 			active_reticle_ring.global_transform = Transform3D(Basis(x_axis, norm, z_axis), collision_point + norm * 0.003)
 
-		var collider: CollisionObject3D = active_raycast.get_collider()
-		if collider:
+		var collider = _latched_raycast_target if (_is_aim_latched and _latched_raycast_target != null) else active_raycast.get_collider()
+		if collider and collider is CollisionObject3D:
 			# Anchor hit detection (Layer 3)
 			if collider.get_collision_layer_value(3):
 				selected_spatial_anchor_node = collider
@@ -1131,6 +1253,8 @@ func _handle_pointer_trigger(active_pointer: XRController3D) -> void:
 			if active_fptr and active_fptr.has_method("_do_select"):
 				active_fptr._do_select(true)
 			trigger_haptic(active_pointer, 150.0, 0.25, 0.03)
+			if pseudo_haptics:
+				pseudo_haptics.play_poke_click()
 			return
 
 	# 2. Wrist HUD click
@@ -1140,6 +1264,8 @@ func _handle_pointer_trigger(active_pointer: XRController3D) -> void:
 			if active_fptr and active_fptr.has_method("_do_select"):
 				active_fptr._do_select(true)
 			trigger_haptic(active_pointer, 150.0, 0.25, 0.03)
+			if pseudo_haptics:
+				pseudo_haptics.play_poke_click()
 			return
 
 	# 3. CAD viewer controls bar click
@@ -1149,6 +1275,8 @@ func _handle_pointer_trigger(active_pointer: XRController3D) -> void:
 			if active_fptr and active_fptr.has_method("_do_select"):
 				active_fptr._do_select(true)
 			trigger_haptic(active_pointer, 150.0, 0.25, 0.03)
+			if pseudo_haptics:
+				pseudo_haptics.play_poke_click()
 			return
 
 	# 4. Mini CAD Viewer grab handle
@@ -1157,6 +1285,8 @@ func _handle_pointer_trigger(active_pointer: XRController3D) -> void:
 		if mini_cad_viewer and mini_cad_viewer.visible and mini_cad_viewer.grab_handle_area and collider == mini_cad_viewer.grab_handle_area:
 			mini_cad_viewer.start_grab(active_pointer)
 			trigger_haptic(active_pointer, 100.0, 0.5, 0.06)
+			if pseudo_haptics:
+				pseudo_haptics.play_magnet_snap()
 			return
 
 	# 5. Measurement badge individual deletion
@@ -1165,6 +1295,8 @@ func _handle_pointer_trigger(active_pointer: XRController3D) -> void:
 		hovered_measurement_line = null
 		delete_measurement(line_to_delete)
 		trigger_haptic(active_pointer, 140.0, 0.6, 0.08)
+		if pseudo_haptics:
+			pseudo_haptics.play_pinch_release()
 		return
 
 	# 6. Tape measure placement
@@ -1185,6 +1317,8 @@ func _handle_pointer_trigger(active_pointer: XRController3D) -> void:
 			tape_measure_preview_line.update_points(tape_measure_point_a, hit_point, use_imperial_units)
 			_update_tape_ui_state()
 			trigger_haptic(active_pointer, 120.0, 0.45, 0.05)
+			if pseudo_haptics:
+				pseudo_haptics.play_magnet_snap()
 		else:
 			var final_line = MEASUREMENT_LINE_SCENE.instantiate()
 			add_child(final_line)
@@ -1199,6 +1333,8 @@ func _handle_pointer_trigger(active_pointer: XRController3D) -> void:
 			_update_tape_ui_state()
 			_update_measurement_metrics()
 			trigger_haptic(active_pointer, 160.0, 0.7, 0.08)
+			if pseudo_haptics:
+				pseudo_haptics.play_pinch_contact()
 		return
 
 	# 7. Spatial Anchor deletion or creation
@@ -1208,6 +1344,8 @@ func _handle_pointer_trigger(active_pointer: XRController3D) -> void:
 			if anchor_parent is XRAnchor3D:
 				spatial_anchor_manager.untrack_anchor(anchor_parent.tracker)
 				trigger_haptic(active_pointer, 100.0, 0.5, 0.06)
+				if pseudo_haptics:
+					pseudo_haptics.play_pinch_release()
 		else:
 			var anchor_transform := Transform3D()
 			anchor_transform.origin = active_raycast.get_collision_point()
@@ -1226,6 +1364,8 @@ func _handle_pointer_trigger(active_pointer: XRController3D) -> void:
 			}
 			spatial_anchor_manager.create_anchor(anchor_transform, custom_data)
 			trigger_haptic(active_pointer, 120.0, 0.6, 0.07)
+			if pseudo_haptics:
+				pseudo_haptics.play_pinch_contact()
 
 
 func _handle_pointer_release(active_pointer: XRController3D) -> void:

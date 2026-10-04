@@ -4,6 +4,31 @@ All notable changes, architectural features, fixes, and documentation for the **
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-10-04
+
+### Added
+- **Procedural Acoustic Pseudo-Haptics Engine (`pseudo_haptics_audio.gd`)**:
+  - Synthesizes crisp, low-latency micro-audio transients procedurally in memory via `AudioStreamWAV` buffers with 0 external asset dependencies.
+  - Generates discrete tactile confirmations for pinch contact (850Hz sine pulse, 12ms), pinch release (620Hz sine pulse, 10ms), target magnet snap (1100Hz–1550Hz upward chirp, 8ms), and direct poke bottom-out (320Hz triangle impulse, 16ms).
+- **Anti-Heisenberg Pre-Pinch Aim Latching (`hand_pinch_detector.gd`, `main.gd`)**:
+  - Implemented 3-zone optical pinch state machine: Hover ($d > 28\text{mm}$), Latch ($22\text{mm} < d \le 28\text{mm}$, strength $0.65-0.84$), and Contact ($d \le 22\text{mm}$, strength $\ge 0.85$).
+  - When pinch enters latch zone, freezes raycast collision point and collider target, eliminating the 5–15mm hand deflection that throws off distant aiming during finger closure.
+- **Secondary Pinch Chord Detection (`hand_pinch_detector.gd`, `main.gd`)**:
+  - Added real-time optical Euclidean tracking between `HAND_JOINT_THUMB_TIP` and `HAND_JOINT_MIDDLE_FINGER_TIP`.
+  - Dominant hand secondary pinch acts as a fast contextual shortcut: instantly deletes hovered spatial anchors or hovered measurement lines, and cycles anchor color in open space.
+  - Off-hand secondary pinch toggles passthrough quickly.
+- **Bimanual Two-Handed Manipulation for CAD Dollhouse (`mini_cad_viewer.gd`, `main.gd`)**:
+  - When both hands pinch within interaction range of the CAD model, engages two-handed 6-DOF manipulation.
+  - **Pinch-to-Scale**: Smoothly scales CAD workstation between 1:100 (0.01x) and 1:10 (0.10x) based on the inter-hand Euclidean distance ratio.
+  - **Steer-to-Rotate**: Rotates the miniature dollhouse turntable using the yaw angle of the vector connecting both hands.
+- **Two-Handed Elastic Pull-Cord 3D Tape Measure (`main.gd`)**:
+  - When tape measure is active, pinching off-hand anchors Point A at fingertip; stretching dominant hand pulls dynamic Point B ribbon; dominant pinch commits the measurement.
+- **Palm-Up Normal Glance Tracking & Ergonomic Hysteresis (`wrist_menu.gd`)**:
+  - Upgraded glance detection to query the `HAND_JOINT_PALM` normal directly from `XRHandTracker`.
+  - Added strict $\ge 0.20$ hysteresis buffer (activation threshold $0.40$, deactivation threshold $0.18$) completely eliminating edge jitter when moving arms.
+
+---
+
 ## [1.8.0] - 2026-10-04
 
 ### Added

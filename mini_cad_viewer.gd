@@ -31,6 +31,15 @@ var is_grabbed: bool = false
 var grabbing_controller: Node3D = null
 var grab_local_transform: Transform3D = Transform3D()
 
+# Bimanual Two-Handed Manipulation (Pinch-to-scale & steer-to-rotate)
+var is_bimanual_active: bool = false
+var bimanual_hand_a: Node3D = null
+var bimanual_hand_b: Node3D = null
+var bimanual_initial_dist: float = 0.0
+var bimanual_initial_scale: float = 0.0
+var bimanual_initial_angle: float = 0.0
+var bimanual_initial_rot_y: float = 0.0
+
 # References to world managers & XR camera
 var scene_manager: OpenXRFbSceneManager = null
 var spatial_anchor_manager: OpenXRFbSpatialAnchorManager = null
@@ -156,7 +165,9 @@ func _process(delta: float) -> void:
 	if is_turntable_active and model_rotator:
 		model_rotator.rotate_y(turntable_speed * delta)
 
-	if is_grabbed and is_instance_valid(grabbing_controller):
+	if is_bimanual_active:
+		update_bimanual()
+	elif is_grabbed and is_instance_valid(grabbing_controller):
 		global_transform = grabbing_controller.global_transform * grab_local_transform
 
 	_update_player_pin()
@@ -509,6 +520,54 @@ func end_grab() -> void:
 		grabbing_controller.trigger_haptic_pulse("haptic", 80.0, 0.3, 0.04, 0.0)
 	is_grabbed = false
 	grabbing_controller = null
+
+
+## Bimanual Two-Handed Manipulation (Pinch-to-scale & steer-to-rotate)
+func start_bimanual(hand_a: Node3D, hand_b: Node3D) -> void:
+	if not hand_a or not hand_b:
+		return
+	is_bimanual_active = true
+	bimanual_hand_a = hand_a
+	bimanual_hand_b = hand_b
+	bimanual_initial_dist = maxf(hand_a.global_position.distance_to(hand_b.global_position), 0.05)
+	bimanual_initial_scale = current_scale
+	var delta_vec = hand_b.global_position - hand_a.global_position
+	bimanual_initial_angle = atan2(delta_vec.x, delta_vec.z)
+	bimanual_initial_rot_y = model_rotator.rotation.y if model_rotator else 0.0
+
+	# Cancel single-hand grab if active
+	if is_grabbed:
+		is_grabbed = false
+		grabbing_controller = null
+
+
+func update_bimanual() -> void:
+	if not is_bimanual_active or not is_instance_valid(bimanual_hand_a) or not is_instance_valid(bimanual_hand_b):
+		end_bimanual()
+		return
+
+	var current_dist = maxf(bimanual_hand_a.global_position.distance_to(bimanual_hand_b.global_position), 0.05)
+	var scale_ratio = current_dist / bimanual_initial_dist
+	var target_scale = clampf(bimanual_initial_scale * scale_ratio, 0.008, 0.15)
+	current_scale = target_scale
+	if content_pivot:
+		content_pivot.scale = Vector3.ONE * current_scale
+
+	var delta_vec = bimanual_hand_b.global_position - bimanual_hand_a.global_position
+	var current_angle = atan2(delta_vec.x, delta_vec.z)
+	var angle_diff = current_angle - bimanual_initial_angle
+	if model_rotator:
+		model_rotator.rotation.y = bimanual_initial_rot_y + angle_diff
+
+	_update_info_display()
+
+
+func end_bimanual() -> void:
+	if is_bimanual_active:
+		is_bimanual_active = false
+		bimanual_hand_a = null
+		bimanual_hand_b = null
+		scale_changed.emit(current_scale)
 
 
 func _on_ctrl_scale_down() -> void:

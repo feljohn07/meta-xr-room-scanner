@@ -9,8 +9,9 @@ signal menu_toggled()
 signal cycle_color()
 signal toggle_hand()
 
-@export var glance_threshold: float = 0.35
+@export var glance_threshold: float = 0.40
 @export var is_glance_active: bool = true
+var tracking_hand: String = "left"
 
 @onready var viewport_panel: Node3D = $Viewport2Din3D
 
@@ -100,6 +101,7 @@ func set_active_color(col: Color) -> void:
 
 
 func set_dominant_hand(hand: String) -> void:
+	tracking_hand = "left" if hand == "right" else "right"
 	if _panel_ui and _panel_ui.has_method("set_dominant_hand"):
 		_panel_ui.set_dominant_hand(hand)
 
@@ -108,16 +110,23 @@ func _process(_delta: float) -> void:
 	if not is_glance_active or not xr_camera or not is_inside_tree():
 		return
 
-	# Determine if the watch face normal is pointing toward the player's head
-	var watch_normal = global_transform.basis.y
-	var to_cam = (xr_camera.global_position - global_position).normalized()
-	var dot = watch_normal.dot(to_cam)
+	# Determine if the watch / palm normal is pointing toward the player's head
+	var glance_normal = global_transform.basis.y
+	var tracker = XRServer.get_tracker("/user/hand_tracker/" + tracking_hand) as XRHandTracker
+	if tracker and tracker.has_tracking_data:
+		var palm_tf = tracker.get_hand_joint_transform(XRHandTracker.HAND_JOINT_PALM)
+		# Palm Y or -Z represents palm face normal
+		glance_normal = (global_transform.basis * palm_tf.basis.y).normalized()
 
+	var to_cam = (xr_camera.global_position - global_position).normalized()
+	var dot = glance_normal.dot(to_cam)
+
+	# Strict >= 0.20 hysteresis buffer prevents edge jitter
 	if dot > glance_threshold:
 		if not is_menu_visible:
 			is_menu_visible = true
 			visible = true
-	elif dot < (glance_threshold - 0.15):
+	elif dot < (glance_threshold - 0.22):
 		if is_menu_visible:
 			is_menu_visible = false
 			visible = false
